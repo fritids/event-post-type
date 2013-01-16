@@ -1544,7 +1544,8 @@ class EventPostType
 			'sticky' => 0,
 			'class' => '',
 			'format' => 'list',
-			'limit' => $options["max"],
+			'max' => $options["max"],
+			'min' => 2,
 			'size' => 'thumbnail',
 			'include' => '',
 			'exclude' => ''
@@ -1579,9 +1580,9 @@ class EventPostType
 		if (!empty($opts["category"])) {
 			/* split multiple categories at the comma */
 			if (strpos($opts["category"], ",") !== false) {
-				$cat = explode(",", $opts["category"]);
+				$cat = array_map("trim", explode(",", $opts["category"]));
 			} else {
-				$cat = $opts["category"];
+				$cat = trim($opts["category"]);
 			}
 			foreach ($allEvents as $evt) {
 				if (has_term($cat, "event_category", $evt)) {
@@ -1592,9 +1593,9 @@ class EventPostType
 		} elseif (!empty($opts["tag"])) {
 			/* split multiple categories at the comma */
 			if (strpos($opts["tag"], ",") !== false) {
-				$tag = explode(",", $opts["tag"]);
+				$tag = array_map("trim", explode(",", $opts["tag"]));
 			} else {
-				$tag = $opts["tag"];
+				$tag = trim($opts["tag"]);
 			}
 			foreach ($allEvents as $evt) {
 				if (has_term($tag, "event_tag", $evt)) {
@@ -1652,14 +1653,14 @@ class EventPostType
 		if ($sticky === true) {
 			$newevents = array();
 			foreach ($events as $id => $obj) {
-				if (EventPostType::is_sticky($obj)) {
+				if (self::is_sticky($obj)) {
 					$newevents[$id] = $obj;
 				}
 			}
 			$events = $newevents;
 		}
 
-		/* see if we stil have some to play with */
+		/* see if we still have some to play with */
 		$out = "";
 		if (count($events)) {
 			/* sort events */
@@ -1693,8 +1694,7 @@ class EventPostType
 			return apply_filters("event-format", $evt, $opts);
 		}
 		switch ($format) {
-			case "featured":
-			case "long":
+			case "title_excerpt_thumbnail":
 				/* get the thumbnail for the event */
 				$thumb = "";
 				if (has_post_thumbnail($evt->ID)) {
@@ -1726,6 +1726,94 @@ class EventPostType
 				break;
 		}
 	}
+
+	public static function widget_form($instance, $widget)
+	{
+		$fields = array(
+			'category' => '',
+			'tag' => '',
+			'start_date' => '',
+			'end_date' => '',
+			'current' => 1,
+			'sticky' => 0,
+			'class' => '',
+			'format' => 'list',
+			'limit' => $options["max"],
+			'min' => 2,
+			'size' => 'thumbnail',
+			'include' => '',
+			'exclude' => ''
+		);
+		$presets = array(
+			"next_latest_with_calendar" => "Next/latest event with calendar (4 columns)",
+			"next_latest_2col" => "Next/latest 2 events in 2 columns",
+			"next_latest_3col" => "Next/latest 3 events in 3 columns",
+			"next_latest_4col" => "Next/latest 4 events in 4 columns"
+		);
+		print('<h3>Events Widget settings</h3>');
+		printf('<p>Select preset: <select name="%s" id="%s">', $widget->get_field_name('events_preset'), $widget->get_field_id('events_preset'));
+		foreach ($preset as $key => $label) {
+			$sel = ($instance['events_preset'] == $key)? ' selected="selected"': '';
+			printf('<option value="%s"%s>%s</option>', $key, $sel, $label);
+		}
+		print('</select></p>');
+		printf('<p><label for="%s">Display as:</label><select id="%s" name="%s">', $widget->get_field_id('events_format'), $widget->get_field_id('events_format'), $widget->get_field_name('events_format'));
+        foreach (array('Title & Time'=>'title','Title & Time + Excerpt'=>'title_excerpt','Title & Time + Excerpt + Thumbnail'=>'title_excerpt_thumbnail') as $name => $value) {
+        	$sel = ($value == $instance['events_format'])? ' selected="selected"': '';
+        	printf('<option value="%s"%s>%s</option>', $value, $sel, $name);
+        }
+		print('</select></p>');
+		printf('<p><label for="%s">Thumbnail size:</label>%s</p>', $widget->get_field_id('events_thumbnial_size'), self::get_image_sizes_select($widget->get_field_name('events_thumbnial_size'), $widget->get_field_id('events_thumbnial_size'), $instance['events_thumbnial_size']));
+
+
+	}
+
+	public static function process_widget_form($new_values, &$instance)
+	{
+
+	}
+
+	/**
+     * gets all configured image sizes in the theme and return them as 
+     * an unordered list with dimensions and cropping details
+     */
+    public static function get_image_sizes_select($select_name = '', $select_id = '', $selected = '')
+    {
+		global $_wp_additional_image_sizes;
+        $sizes = array();
+        $out = "";
+		foreach ( get_intermediate_image_sizes() as $s ) {
+			$sizes[$s] = array( 'name' => '', 'width' => '', 'height' => '', 'crop' => FALSE );
+			/* Read theme added sizes or fall back to default sizes set in options... */
+			$sizes[$s]['name'] = $s;
+			if ( isset( $_wp_additional_image_sizes[$s]['width'] ) ) {
+				$sizes[$s]['width'] = intval( $_wp_additional_image_sizes[$s]['width'] ); 
+			} else {
+				$sizes[$s]['width'] = get_option( "{$s}_size_w" );
+			}
+			if ( isset( $_wp_additional_image_sizes[$s]['height'] ) ) {
+				$sizes[$s]['height'] = intval( $_wp_additional_image_sizes[$s]['height'] );
+			} else {
+				$sizes[$s]['height'] = get_option( "{$s}_size_h" );
+			}
+			if ( isset( $_wp_additional_image_sizes[$s]['crop'] ) ) {
+				$sizes[$s]['crop'] = intval( $_wp_additional_image_sizes[$s]['crop'] );
+			} else {
+				$sizes[$s]['crop'] = get_option( "{$s}_crop" );
+			}
+		}
+		if (count($sizes)) {
+			$out .= sprintf('<select id="%s" name="%s">', $select_id, $select_name);
+			foreach ($sizes as $s ) {
+				$cropped = $s['crop']? " - cropped": "";
+				$sel = ($s['name'] == $selected)? ' selected="selected"': '';
+				$out .= sprintf('<option value="%s"%s>%s (%s x %s%s)</option>', $s['name'], $sel, $s['name'], $s['width'], $s['height'], $cropped);
+			}
+			$out .= '</select>';			
+		}
+		return $out;
+	}
+
 
 	/**
 	 * get_date
