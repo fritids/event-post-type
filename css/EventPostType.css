@@ -1,0 +1,210 @@
+/*!
+ * events calendar styles
+ * @author Peter Edwards <bjorsq@gmail.com>
+ * @version 1.2
+ * @package EventPostType_Plugin
+ */
+#eventsCalendar {
+  position: relative;
+}
+#eventsCalendar table.eventsCalendar {
+  border: none;
+  border-top: 1px solid #cccccc;
+  width: 100%;
+  background: #ffffff;
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+#eventsCalendar table.eventsCalendar th {
+  border: none;
+  background: #ffffff;
+  color: #333333;
+  font-weight: bold;
+  padding: 3px 0;
+  text-align: center;
+}
+#eventsCalendar table.eventsCalendar td {
+  background: #ffffff;
+  color: #000000;
+  padding: 3px 0;
+  font-size: 12px;
+  text-align: center;
+  border: 2px solid #ffffff;
+}
+#eventsCalendar table.eventsCalendar td.ec-hover {
+  border-color: #cccccc;
+}
+#eventsCalendar table.eventsCalendar td.today {
+  border-color: #cccccc;
+}
+#eventsCalendar table.eventsCalendar td.event {
+  border-color: #008a10;
+  cursor: pointer;
+}
+#eventsCalendar table.eventsCalendar td.other-month,
+#eventsCalendar table.eventsCalendar td.other-month:hover,
+#eventsCalendar table.eventsCalendar td.other-month.ec-hover {
+  background: #eeeeee;
+  color: #aaaaaa;
+  border-color: #eeeeee;
+}
+#eventsCalendar table.eventsCalendar td.disabled,
+#eventsCalendar table.eventsCalendar td.disabled.ec-hover,
+#eventsCalendar table.eventsCalendar td.unselectable,
+#eventsCalendar table.eventsCalendar td.unselectable:hover,
+#eventsCalendar table.eventsCalendar td.unselectable.ec-hover {
+  background: #bbbbbb;
+  color: #888888;
+}
+#eventsCalendar table.eventsCalendar tr {
+  border: none;
+}
+#ec-info {
+  border: 2px solid #008a10;
+  position: absolute;
+  display: none;
+  z-index: 201;
+  background: #ffffff;
+}
+#ec-info ul {
+  list-style: none;
+}
+.ec-container {
+  position: relative;
+  background-color: #e0e0e0;
+  background-image: -moz-linear-gradient(top, #cccccc, #ffffff);
+  background-image: -ms-linear-gradient(top, #cccccc, #ffffff);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#cccccc), to(#ffffff));
+  background-image: -webkit-linear-gradient(top, #cccccc, #ffffff);
+  background-image: -o-linear-gradient(top, #cccccc, #ffffff);
+  background-image: linear-gradient(top, #cccccc, #ffffff);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#cccccc', endColorstr='#ffffff', GradientType=0);
+  border: 1px solid #ccc;
+  -webkit-border-top-left-radius: 2px;
+  -webkit-border-top-right-radius: 2px;
+  -moz-border-radius-topleft: 2px;
+  -moz-border-radius-topright: 2px;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+  font-size: 12px;
+  line-height: 12px;
+  font-family: arial, sans-serif;
+  padding-top: 4px;
+  max-width: 240px;
+  line-height: 1.2em;
+}
+.ec-container h4 {
+  font-size: 12px;
+  text-align: center;
+  margin: 2px 0;
+  padding: 0;
+}
+.ec-container a {
+  color: #000;
+  text-decoration: none;
+  padding: 3px 2px 0;
+}
+.ec-container a.disabled {
+  cursor: default;
+  color: #aaa;
+}
+.ec-container .ec-nav {
+  display: none;
+}
+.ec-container .ec-nav-prev {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 40%;
+}
+.ec-container .ec-nav-prev a {
+  float: left;
+}
+.ec-container .ec-nav-next {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 40%;
+}
+.ec-container .ec-nav-next a {
+  float: right;
+}
+.tooltip {
+  position: absolute;
+  z-index: 202;
+  display: block;
+  visibility: visible;
+  padding: 5px;
+  font-size: 11px;
+  opacity: 0;
+  filter: alpha(opacity=0);
+}
+.tooltip.in {
+  opacity: 0.9;
+  filter: alpha(opacity=90);
+}
+.tooltip.top {
+  margin-top: -2px;
+}
+.tooltip.right {
+  margin-left: 2px;
+}
+.tooltip.bottom {
+  margin-top: 2px;
+}
+.tooltip.left {
+  margin-left: -2px;
+}
+.tooltip.top .tooltip-arrow {
+  bottom: 0;
+  left: 50%;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #cccccc;
+}
+.tooltip.left .tooltip-arrow {
+  top: 50%;
+  right: 0;
+  margin-top: -5px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 5px solid #cccccc;
+}
+.tooltip.bottom .tooltip-arrow {
+  top: 0;
+  left: 50%;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid #cccccc;
+}
+.tooltip.right .tooltip-arrow {
+  top: 50%;
+  left: 0;
+  margin-top: -5px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 5px solid #cccccc;
+}
+.tooltip-inner {
+  max-width: 200px;
+  padding: 8px;
+  color: #000000;
+  text-decoration: none;
+  background-color: #ffffff;
+  border: 2px solid #cccccc;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+}
+.tooltip-inner h3 {
+  font-size: 13px;
+  font-weight: bold;
+}
+.tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+}

@@ -1,0 +1,200 @@
+/*!
+ * events calendar styles
+ * @author Peter Edwards <bjorsq@gmail.com>
+ * @version 1.2
+ * @package EventPostType_Plugin
+ */
+
+// import some LESS stuff
+@import "mixins.less";
+// set some variables
+@black:                 #000;
+@tableBorder:           #ccc;
+@tableBackground:       #fff;
+@headerBackground:      #fff;
+@headerText:            #333;
+@cellBackground:        #fff;
+@cellText:              #000;
+@inactiveBorder:        #fff;
+@activeBorder:          #008A10;
+@activeBackground:      #fff;
+@hoverBorder:           #ccc;
+@todayBorder:           #ccc;
+@otherMonthBorder:      #eee;
+@otherMonthBackground:  #eee;
+@otherMonthText:        #aaa;
+@disabledBackground:    #bbb;
+@disabledText:          #888;
+@toolTipText:           #000;
+@toolTipBackground:     #fff;
+@zindexTooltip:         202;
+@toolTipBorder:         #ccc;
+
+#eventsCalendar {
+
+    position:relative;
+
+	table {
+
+		&.eventsCalendar {
+			border:none;
+			border-top:1px solid @tableBorder;
+			width:100%;
+			background:@tableBackground;
+		    border-collapse: separate;
+		    border-spacing: 2px;
+
+			th {
+				border:none;
+				background:@headerBackground;
+				color:@headerText;
+				font-weight: bold;
+				padding: 3px 0;
+				text-align: center;
+			}
+
+			td {
+				background:@cellBackground;
+				color:@cellText;
+				padding: 3px 0;
+			    font-size: 12px;
+				text-align: center;
+				border:2px solid @inactiveBorder;
+
+				&.ec-hover {
+					border-color: @hoverBorder;
+				}
+
+				&.today {
+					border-color: @todayBorder;
+				}
+
+				&.event  {
+					border-color: @activeBorder;
+					cursor: pointer;
+				}
+
+				&.other-month, 
+				&.other-month:hover, 
+				&.other-month.ec-hover {
+					background:@otherMonthBackground;
+					color:@otherMonthText;
+					border-color:@otherMonthBorder;
+				}
+
+				&.disabled, 
+				&.disabled.ec-hover,
+				&.unselectable,
+				&.unselectable:hover,
+				&.unselectable.ec-hover {
+					background:@disabledBackground;
+					color:@disabledText;
+				}
+
+			}
+
+			tr {
+				border:none;
+			}
+		}
+	}
+}
+#ec-info {
+	border:2px solid @activeBorder;
+	position:absolute;
+	display:none;
+	z-index:201;
+	background:@activeBackground;
+	ul {
+		list-style:none;
+	}
+}
+.ec-container {
+	position: relative;
+	.verticalGradient();
+    border:1px solid #ccc;
+    -webkit-border-top-left-radius: 2px;
+    -webkit-border-top-right-radius: 2px;
+    -moz-border-radius-topleft: 2px;
+    -moz-border-radius-topright: 2px;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+    font-size: 12px;
+    line-height:12px;
+	font-family: arial, sans-serif;
+	padding-top:4px;
+	max-width:240px;
+	line-height: 1.2em;
+	h4 {
+		font-size: 12px;
+		text-align: center;
+		margin: 2px 0;
+		padding: 0;
+	}
+	a {
+		color: #000;
+		text-decoration: none;
+		padding: 3px 2px 0;
+		&.disabled {
+			cursor: default;
+			color: #aaa;
+		}
+	}
+	.ec-nav {
+		display:none;
+	}
+	.ec-nav-prev {
+		position: absolute;
+		top: 2px;
+		left: 4px;
+		width: 40%;
+		a {
+			float: left;
+		}
+	}
+	.ec-nav-next {
+		position: absolute;
+		top: 2px;
+		right: 4px;
+		width: 40%;
+		a {
+			float: right;
+		}
+	}
+}
+.tooltip {
+  position: absolute;
+  z-index: @zindexTooltip;
+  display: block;
+  visibility: visible;
+  padding: 5px;
+  font-size: 11px;
+  .opacity(0);
+  &.in     { .opacity(90); }
+  &.top    { margin-top:  -2px; }
+  &.right  { margin-left:  2px; }
+  &.bottom { margin-top:   2px; }
+  &.left   { margin-left: -2px; }
+  &.top .tooltip-arrow    { #popoverArrow > .top(5px, @toolTipBorder); }
+  &.left .tooltip-arrow   { #popoverArrow > .left(5px, @toolTipBorder); }
+  &.bottom .tooltip-arrow { #popoverArrow > .bottom(5px, @toolTipBorder); }
+  &.right .tooltip-arrow  { #popoverArrow > .right(5px, @toolTipBorder); }
+}
+.tooltip-inner {
+  max-width: 200px;
+  padding:8px;
+  color: @toolTipText;
+  text-decoration: none;
+  background-color: @toolTipBackground;
+  border:2px solid @toolTipBorder;
+  .border-radius(4px);
+  h3 {
+  	font-size:13px;
+  	font-weight:bold;
+  }
+}
+.tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
