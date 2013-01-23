@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: EventPostType
-Plugin URI: http://code.google.com/p/event-post-type/
+Plugin URI: https://github.com/essl-pvac/event-post-type
 Description: A Plugin for Wordpress which creates a new post type for Events
 Version: 1.2
 Author: Peter Edwards <bjorsq@gmail.com>
@@ -26,7 +26,19 @@ License: GPL2
 	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-if (!class_exists('EventPostType' )) :
+/**
+ * check to see if an earlier version of the plugin 
+ * is activated (or another one with the same name)
+ */
+if (class_exists('EventPostType' )) :
+	/* find the path to the plugin */
+	$reflector = new ReflectionClass('EventPostType');
+	if ($reflector !== false) {
+		$plugin_path = $reflector->getFileName();
+		/* deactivate the plugin */
+		deactivate_plugins($plugin_path, true);
+	}
+else :
 /**
  * Class to create a custom post type for events
  * Adds the custom post type and additional editing fields for
