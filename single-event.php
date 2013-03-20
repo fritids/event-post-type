@@ -10,9 +10,8 @@
  */
 
 get_header(); 
-?>
 
-<?php if ( have_posts() ) while ( have_posts() ) : the_post(); ?>
+if ( have_posts() ) while ( have_posts() ) : the_post(); ?>
 
 		<div id="primary">
 			<div id="content" role="main">
@@ -34,13 +33,13 @@ get_header();
 				</div><!-- #post-## -->
 
 				<div id="nav-below" class="navigation">
-					<div class="nav-previous"><?php previous_post_link( '%link', '<span class="meta-nav">' . _x( '&larr;', 'Previous post link', 'twentyten' ) . '</span> %title' ); ?></div>
-					<div class="nav-next"><?php next_post_link( '%link', '%title <span class="meta-nav">' . _x( '&rarr;', 'Next post link', 'twentyten' ) . '</span>' ); ?></div>
+					<div class="nav-previous"><?php EventPostType::previous_event_link( '%link', '<span class="meta-nav prev">' . _x( '&larr;', 'Previous event', 'event-post-type' ) . '</span> %title' ); ?></div>
+					<div class="nav-next"><?php EventPostType::next_event_link( '%link', '%title <span class="meta-nav next">' . _x( '&rarr;', 'Next event', 'event-post-type' ) . '</span>' ); ?></div>
 				</div><!-- #nav-below -->
 			</div>
 		</div>
 
-				<?php comments_template( '', true ); ?>
+		<?php comments_template( '', true ); ?>
 
 <?php endwhile; // end of the loop. ?>
 <?php get_footer(); ?>
