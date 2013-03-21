@@ -4,13 +4,13 @@ Plugin Name: EventPostType
 Plugin URI: https://github.com/essl-pvac/event-post-type
 Description: A Plugin for Wordpress which creates a new post type for Events
 Version: 1.2
-Author: Peter Edwards <bjorsq@gmail.com>
-Author URI: http://bjorsq.net
+Author: Peter Edwards <p.l.edwards@leeds.ac.uk>
+Author URI: http://essl-pvac.github.com
 Text Domain: event-post-type
 License: GPL2
 */
 
-/*  Copyright 2011  Peter Edwards  (email : bjorsq@gmail.com)
+/*  Copyright 2011  Peter Edwards  (email : p.l.edwards@leeds.ac.uk)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License, version 2, as 
@@ -29,6 +29,7 @@ License: GPL2
 /**
  * check to see if an earlier version of the plugin 
  * is activated (or another one with the same name)
+ * and deactivate it.
  */
 if (class_exists('EventPostType' )) {
 	/* find the path to the plugin */
@@ -43,8 +44,9 @@ if (class_exists('EventPostType' )) {
  * Class to create a custom post type for events
  * Adds the custom post type and additional editing fields for
  * the post editor to handle custom event properties. Provides
- * methods to use in templates and feeds
- * @author Peter Edwards <bjorsq@gmail.com>
+ * methods to use in templates and feeds. Registers custom
+ * taxonomies for the new post type.
+ * @author Peter Edwards <p.l.edwards@leeds.ac.uk>
  * @version 1.2
  * @package EventPostType_Plugin
  */
@@ -181,7 +183,7 @@ class EventPostType
 				'has_archive' => true,
 				'menu_position' => 20,
 				'menu_icon' => plugins_url('/img/EventPostType.png', __FILE__),
-				'rewrite' => array('slug' => $options['ept_plugin_options']["post_type_slug"], 'with_front' => false),
+				'rewrite' => array('slug' => $options['ept_plugin_options']['post_type_slug'], 'with_front' => false),
 				'supports' => array('title','editor','excerpt','thumbnail'),
 				'taxonomies' => array( 'event_category', 'event_tag' )
 			);
@@ -242,7 +244,7 @@ class EventPostType
 			'labels' => $category_labels,
 			'show_ui' => true,
 			'query_var' => true,
-			'rewrite' => array( 'slug' => $options['ept_plugin_options']["post_type_slug"] . '/' . $options['ept_plugin_options']['event_category_slug'], 'with_front' => false)
+			'rewrite' => array( 'slug' => $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['event_category_slug'], 'with_front' => false)
 		));
 
 		/* Add new non-hierarchical taxonomy (like post-tags) */
@@ -269,7 +271,7 @@ class EventPostType
 			'show_ui' => true,
 			'update_count_callback' => '_update_post_term_count',
 			'query_var' => true,
-			'rewrite' => array( 'slug' => $options['ept_plugin_options']["post_type_slug"] . '/' . $options['ept_plugin_options']['event_tag_slug'], 'with_front' => false )
+			'rewrite' => array( 'slug' => $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['event_tag_slug'], 'with_front' => false )
 		));
 	}
 	
@@ -391,11 +393,12 @@ class EventPostType
 			/* this will save the event_is_sticky checkbox state from quickedit */
 			add_post_meta($post_id, 'event_is_sticky', isset($_POST["event_is_sticky"]), true) or update_post_meta($post_id, 'event_is_sticky', isset($_POST["event_is_sticky"]));
 
-			/* otherwise, verify this came from the main editing page and with proper authorization */
+			/* verify this came from the main editing page and with proper authorization */
 			if ( !isset($_POST['event_dates']) || !wp_verify_nonce( $_POST['event_dates'], 'events_custom_dates' )) {
 				return $post_id;
 			}
-			/* verify if this is an auto save routine.
+			/**
+			 * verify if this is an autosave routine.
 			 * If it is our form has not been submitted, so we dont want to do anything
 			 */
 			if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
@@ -432,16 +435,16 @@ class EventPostType
 		/* get plugin options */
 		$options = EventPostTypeOptions::get_plugin_options();
 
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/([0-9]{4})/?$', 'index.php?post_type=event&event_year=$matches[1]', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_year=$matches[1]&event_month=$matches[2]', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/([0-9]{4})/([0-9]{2})/([0-9]{2})/?$', 'index.php?post_type=event&event_year=$matches[1]&event_month=$matches[2]&event_day=$matches[3]', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/(json|ical)/?$', 'index.php?post_type=event&event_feed=$matches[1]', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/(json|ical)/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_feed=$matches[1]&event_year=$matches[2]&event_month=$matches[3]', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/' . $options['ept_plugin_options']["post_type_future_slug"] . '/?$', 'index.php?post_type=event&event_future=1&future_page=1', 'top');
-		add_rewrite_rule('^' . $options['ept_plugin_options']["post_type_slug"] . '/' . $options['ept_plugin_options']["post_type_future_slug"] . '/([0-9]+)/?$', 'index.php?post_type=event&event_future=1&future_page=$matches[1]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/([0-9]{4})/?$', 'index.php?post_type=event&event_year=$matches[1]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_year=$matches[1]&event_month=$matches[2]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/([0-9]{4})/([0-9]{2})/([0-9]{2})/?$', 'index.php?post_type=event&event_year=$matches[1]&event_month=$matches[2]&event_day=$matches[3]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/(json|ical|rss|atom)/?$', 'index.php?post_type=event&event_feed=$matches[1]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/(json|ical|rss|atom)/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_feed=$matches[1]&event_year=$matches[2]&event_month=$matches[3]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['post_type_future_slug'] . '/?$', 'index.php?post_type=event&event_future=1&future_page=1', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['post_type_future_slug'] . '/([0-9]+)/?$', 'index.php?post_type=event&event_future=1&future_page=$matches[1]', 'top');
 		add_rewrite_tag('%event_future%', '(0|1)');
 		add_rewrite_tag('%future_page%', '[0-9]+');
-		add_rewrite_tag('%event_feed%', '(json|ical)');
+		add_rewrite_tag('%event_feed%', '(json|ical|rss|atom)');
 		add_rewrite_tag('%event_year%', '[0-9]{4}');
 		add_rewrite_tag('%event_month%', '[0-9]{2}');
 		add_rewrite_tag('%event_day%', '[0-9]{2}');
@@ -454,9 +457,9 @@ class EventPostType
 	{
 		/* get plugin options */
 		$options = EventPostTypeOptions::get_plugin_options();
-		/* only do this for the fron-end */
+		/* only do this for the front-end */
 		if (!is_admin()) {
-			printf('<script type="text/javascript">var eventsJSON="%s/%s/json";</script>', get_bloginfo("url"), $options['ept_plugin_options']["post_type_slug"]);
+			printf('<script type="text/javascript">var eventsJSON="%s/%s/json";</script>', get_bloginfo("url"), $options['ept_plugin_options']['post_type_slug']);
 		}
 	}
 
@@ -790,12 +793,11 @@ class EventPostType
 	 * first looks for the corresponding templates in the theme/parent theme
 	 * used by the single_template filter
 	 * @param string single template path passed by Wordpress
-	 * @param string single template path (possibly altered)
+	 * @retur string single template path (possibly altered)
 	 */
 	public static function single_template($single)
 	{
-		global $wp_query, $post;
-		if ($post->post_type == "event") {
+		if (self::is_event()) {
 			$theme_path = get_stylesheet_directory() . '/single-event.php';
 			$template_path = get_template_directory() . '/single-event.php';
 			$plugin_path = dirname(__FILE__) . '/single-event.php';
@@ -815,12 +817,11 @@ class EventPostType
 	 * first looks for the corresponding templates in the theme/parent theme
 	 * used by the archive_template filter
 	 * @param string archive template path passed by Wordpress
-	 * @param string archive template path (possibly altered)
+	 * @return string archive template path (possibly altered)
 	 */
 	public static function archive_template($archive)
 	{
-		global $wp_query, $post;
-		if ($post->post_type == "event") {
+		if (self::is_event()) {
 			$theme_path = get_stylesheet_directory() . '/archive-event.php';
 			$template_path = get_template_directory() . '/archive-event.php';
 			$plugin_path = dirname(__FILE__) . '/archive-event.php';
@@ -843,7 +844,7 @@ class EventPostType
 	public static function add_body_class($classes)
 	{
 		global $wp_query;
-		if (isset($wp_query->query_vars['post_type']) && $wp_query->query_vars["post_type"] == 'event') {
+		if (self::is_event()) {
 			$classes[] = 'event';
 			if (is_single()) {
 				$classes[] = 'single-event';
@@ -869,8 +870,8 @@ class EventPostType
 	 */
 	public static function add_post_class($classes)
 	{
-		global $wp_query, $post;
-		if (isset($wp_query->query_vars['post_type']) && $wp_query->query_vars["post_type"] == 'event') {
+		global $post;
+		if (self::is_event()) {
 			$classes[] = 'event';
 			$eventmeta = self::get_event_meta($post->ID);
 			if ($eventmeta["event_start"] > time()) {
@@ -893,7 +894,7 @@ class EventPostType
 	public static function plugin_scripts()
 	{
 		$options = EventPostTypeOptions::get_plugin_options();
-		if ($options['ept_plugin_options']["enqueue_js"]) {
+		if ($options['ept_plugin_options']['enqueue_js']) {
 			wp_enqueue_script('EventPostTypeScript', plugins_url('/js/EventPostType.js', __FILE__), array('jquery'));
 		}
 	}
@@ -904,7 +905,7 @@ class EventPostType
 	public static function plugin_styles()
 	{
 		$options = EventPostTypeOptions::get_plugin_options();
-		if ($options['ept_plugin_options']["enqueue_css"]) {
+		if ($options['ept_plugin_options']['enqueue_css']) {
 			wp_enqueue_style('EventPostTypeStyle', plugins_url('/css/EventPostType.css', __FILE__));
 		}
 	}
@@ -916,12 +917,10 @@ class EventPostType
 	 */
 	function override_wp_paging($query)
 	{
-    	if (!is_admin()) {
-    		if (isset($query->query_vars['post_type']) && 'event' == $query->query_vars['post_type']) {
-        		$query->query_vars['posts_per_page'] = 1;
-    		}
-    		return $query;
-		}
+    	if (!is_admin() && self::is_event()) {
+       		$query->query_vars['posts_per_page'] = 1;
+       	}
+   		return $query;
 	}
 
 	/**
@@ -982,7 +981,7 @@ class EventPostType
 
 			/* if there is only one event for this day, redirect to the single event page */
 			if (count($events->posts) == 1) {
-				wp_redirect(get_permalink($events->posts[0]->ID));
+				wp_redirect(self::get_url($events->posts[0]->ID));
 			} else {
 				$events->total_posts = count($events->posts);
 			}
@@ -1026,10 +1025,16 @@ class EventPostType
 		foreach ($events->posts as $event) {
 			if (self::is_current($event)) {
 				$events->current[] = $event;
+				if (self::is_sticky($event)) {
+					$events->stickies[] = $event->ID;
+				}
 			} else {
 				$events->past[] = $event;
 			}
 		}
+		/* store the number of stickies on the front page to help paging calculations */
+		$sticky_on_frontpage = min(count($events->stickies), $events->options['ept_archive_options']['archive_frontpage_sticky']);
+
 
 		/* sort events within each container */
 		usort($events->current, array('EventPostType', 'sort_events_by_start_date_asc'));
@@ -1050,18 +1055,11 @@ class EventPostType
 			if (count($events->past)) {
 				/* first see if we need to offset when past events are placed on the first page */
 				$past_on_frontpage = 0;
-				if (count($events->current) < $events->options['ept_archive_options']["archive_frontpage_events"]) {
+				if (count($events->current) < ($events->options['ept_archive_options']['archive_frontpage_events'] + $sticky_on_frontpage)) {
 					/* find out how many past events were displayed on the front page */
-					$stickycount = 0;
-					foreach ($events->current as $e) {
-						if (self::is_sticky($e)) {
-							$stickycount++;
-						}
-					}
-					$stickycount = min($stickycount, $events->options['ept_archive_options']["archive_frontpage_sticky"]);
-					$past_on_frontpage = ($events->options['ept_archive_options']["archive_frontpage_events"] - (count($events->current) - $stickycount));
+					$past_on_frontpage = ($events->options['ept_archive_options']['archive_frontpage_events'] + $sticky_on_frontpage) - count($events->current);
 				}
-				$start = ($events->options['ept_archive_options']["archive_perpage"] * (intVal($wp_query->query_vars["paged"]) - 2)) - $past_on_frontpage;
+				$start = ($events->options['ept_archive_options']['archive_perpage'] * (intVal($wp_query->query_vars["paged"]) - 2)) - $past_on_frontpage;
 				$events->posts = array_slice($events->past, $start, $events->options['ept_archive_options']["archive_perpage"]);
 			}
 
@@ -1070,10 +1068,7 @@ class EventPostType
 			/* future events pages */
 			$events->paging["future"] = true;
 			if (count($events->current)) {
-				/**
-				 * identify sticky events in current container and
-				 * remove them up to the maximum of the archive_frontpage_sticky option
-				 */
+				/* remove sticky events shown on front page */
 				$stickycount = 0;
 				$toremove = array();
 				foreach ($events->current as $e) {

@@ -3,10 +3,7 @@
  * The template for displaying the Events archive
  */
 
-/* first deal with the events json/ical feeds */
-EventPostType::do_feed();
-
-/* now get events to display */
+/* get events to display */
 $events = EventPostType::query_events();
 //print('<pre>');print_r($events);print('</pre>');exit;
 
