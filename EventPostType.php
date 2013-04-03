@@ -369,14 +369,17 @@ class EventPostType
 		$event_data = self::get_event_meta($post->ID);
 		$url = (isset($event_data['event_url']) && trim($event_data['event_url']) != "" && self::check_url($event_data['event_url']))? trim($event_data['event_url']): "";
 		printf('<input id="event_url" name="event_url" type="text" value="%s" size="20" />', esc_attr($url));
-		print('<p><em>Input a URL here if the data for the event is held on another website.</em></p>');
+		printf('<p><em>%s</em></p>', __('Input a URL here if details for the event are held on another website.', 'event-post-type'));
 	}
 
+	/**
+	 * checks a URL for validity
+	 * simple syntax check - just make sure we have http:// or https://
+	 */
 	public static function check_url($url = "")
 	{
-		$url = trim(esc_url($url));
-		$url = @parse_url($url);
-		if (!$url) {
+		$url = strtolower(trim(esc_url($url)));
+		if (!preg_match('!^https?://(.*)$', $url)) {
 			return false;
 		}
 		return true;
@@ -475,14 +478,13 @@ class EventPostType
 	 */
 	public static function add_event_columns( $posts_columns )
 	{
-		$new_columns['cb'] = '<input type="checkbox" />';
-		$new_columns['title'] = __( 'Event Title', 'event-post-type' );
-		$new_columns['event_is_sticky'] = __( 'Sticky?', 'event-post-type' );
-		$new_columns['author'] = __( 'Author', 'event-post-type' );
-		$new_columns['event_category'] = __( 'Categories', 'event-post-type' );
-		$new_columns['event_tag'] = __( 'Tags', 'event-post-type' );
-		$new_columns['event_date'] = __( 'Date', 'event-post-type' );
-		return $new_columns;
+		$posts_columns['title'] = __( 'Event Title', 'event-post-type' );
+		$posts_columns['event_is_sticky'] = __( 'Sticky?', 'event-post-type' );
+		$posts_columns['author'] = __( 'Author', 'event-post-type' );
+		$posts_columns['event_category'] = __( 'Categories', 'event-post-type' );
+		$posts_columns['event_tag'] = __( 'Tags', 'event-post-type' );
+		$posts_columns['date'] = __( 'Date', 'event-post-type' );
+		return $posts_columns;
 	}
 
    	/**
@@ -495,7 +497,7 @@ class EventPostType
 	{
 		global $post;
 		switch ($column_id) {
-			case "event_date":
+			case "date":
 				echo self::get_date($post->ID);
 				break;
 			case "event_category":
@@ -531,7 +533,7 @@ class EventPostType
 	 */
 	public static function date_column_register_sortable( $columns )
 	{
-		$columns["event_date"] = "event_date";
+		$columns["date"] = "date";
 		return $columns;
 	}
 	
@@ -541,7 +543,7 @@ class EventPostType
 	 */
 	public static function date_column_orderby( $vars )
 	{
-		if (isset($vars["orderby"]) && $vars["orderby"] == "event_date") {
+		if (isset($vars["orderby"]) && $vars["orderby"] == "date") {
 			$vars = array_merge ($vars, array(
 				"meta_key" => "event_start",
 				"orderby" => "meta_value_num"
@@ -1022,18 +1024,19 @@ class EventPostType
 		$events->total_posts = count($events->posts);
 
 		/* sort events into current (future), sticky and past containers */
+		$stickycount = 0;
 		foreach ($events->posts as $event) {
 			if (self::is_current($event)) {
 				$events->current[] = $event;
 				if (self::is_sticky($event)) {
-					$events->stickies[] = $event->ID;
+					$stickycount++;
 				}
 			} else {
 				$events->past[] = $event;
 			}
 		}
 		/* store the number of stickies on the front page to help paging calculations */
-		$sticky_on_frontpage = min(count($events->stickies), $events->options['ept_archive_options']['archive_frontpage_sticky']);
+		$sticky_on_frontpage = min($stickycount, $events->options['ept_archive_options']['archive_frontpage_sticky']);
 
 
 		/* sort events within each container */
@@ -1045,11 +1048,6 @@ class EventPostType
 		 * and set paging parameters
 		 */
 		if (isset($wp_query->query_vars["paged"]) && intVal($wp_query->query_vars["paged"]) > 0) {
-
-			/* archived events page (events are in the past) */
-			$events->paging["current"] = intVal($wp_query->query_vars["paged"]);
-			$events->paging["newer"] = $events->paging["current"] - 1;
-			$events->paging["older"] = (count($events->past) > ($events->options['ept_archive_options']["archive_perpage"] * (intVal($wp_query->query_vars["paged"]) - 1)))? (intVal($wp_query->query_vars["paged"]) + 1): false;
 
 			/* set posts variable to relevant events */
 			if (count($events->past)) {
@@ -1063,39 +1061,38 @@ class EventPostType
 				$events->posts = array_slice($events->past, $start, $events->options['ept_archive_options']["archive_perpage"]);
 			}
 
+			/* set paging variables */
+			$events->paging["current"] = intVal($wp_query->query_vars["paged"]);
+			$events->paging["newer"] = $events->paging["current"] - 1;
+			$events->paging["older"] = (count($events->past) > ($past_on_frontpage + ($events->options['ept_archive_options']["archive_perpage"] * (intVal($wp_query->query_vars["paged"]) - 1))))? (intVal($wp_query->query_vars["paged"]) + 1): false;
+
 		} elseif (isset($wp_query->query_vars["event_future"]) && ($wp_query->query_vars["event_future"] == 1)) {
 
 			/* future events pages */
 			$events->paging["future"] = true;
 			if (count($events->current)) {
 				/* remove sticky events shown on front page */
-				$stickycount = 0;
-				$toremove = array();
-				foreach ($events->current as $e) {
-					if (self::is_sticky($e) && ($stickycount < $events->options['ept_archive_options']["archive_frontpage_sticky"])) {
-						$toremove[] = $e->ID;
-						$stickycount++;
-					}
-				}
-				/* remove sticky events from current container */
-				foreach ($toremove as $id) {
-					for ($i = 0; $i < count($events->current); $i++) {
-						if ($id == $events->current[$i]->ID) {
-							array_splice($events->current, $i, 1);
+				if ($sticky_on_frontpage > 0) {
+					$toremove = array_slice($events->stickies, 0, $sticky_on_frontpage);
+					foreach ($toremove as $id) {
+						for ($i = 0; $i < count($events->current); $i++) {
+							if ($id == $events->current[$i]->ID) {
+								array_splice($events->current, $i, 1);
+							}
 						}
 					}
 				}
 				if (isset($wp_query->query_vars["future_page"]) && $wp_query->query_vars["future_page"] > 1 && (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + $events->options['ept_archive_options']["archive_perpage"]))) {
 					/* future events (paged) */
 					$events->paging["current"] = $wp_query->query_vars["future_page"];
-					$events->paging["newer"] = (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + ($wp_query->query_vars["future_page"] * $events->options['ept_archive_options']["archive_perpage"])))? ($wp_query->query_vars["future_page"] + 1): false;
+					$events->paging["newer"] = (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + $sticky_on_frontpage + ($wp_query->query_vars["future_page"] * $events->options['ept_archive_options']["archive_perpage"])))? ($wp_query->query_vars["future_page"] + 1): false;
 					$events->paging["older"] = $wp_query->query_vars["future_page"] - 1;
-					$events->posts = array_slice($events->current, ($events->options['ept_archive_options']["archive_frontpage_events"] + ($events->options['ept_archive_options']["archive_perpage"] * ($events->paging["current"] - 1))), $events->options['ept_archive_options']["archive_perpage"]);
+					$events->posts = array_slice($events->current, ($events->options['ept_archive_options']["archive_frontpage_events"] + $sticky_on_frontpage + ($events->options['ept_archive_options']["archive_perpage"] * ($events->paging["current"] - 1))), $events->options['ept_archive_options']["archive_perpage"]);
 				} else {
 					$events->paging["current"] = 1;
-					$events->paging["newer"] = (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + $events->options['ept_archive_options']["archive_perpage"]))? 2: false;
+					$events->paging["newer"] = (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + $sticky_on_frontpage + $events->options['ept_archive_options']["archive_perpage"]))? 2: false;
 					$events->paging["older"] = false;
-					$events->posts = array_slice($events->current, $events->options['ept_archive_options']["archive_frontpage_events"], $events->options['ept_archive_options']["archive_perpage"]);
+					$events->posts = array_slice($events->current, $events->options['ept_archive_options']["archive_frontpage_events"]  + $sticky_on_frontpage, $events->options['ept_archive_options']["archive_perpage"]);
 				}
 			}
 		} else {
@@ -1106,7 +1103,7 @@ class EventPostType
 			 * may be different to the number per page), and all posts are taken from forthcoming events.
 			 */
 			$events->paging["current"] = 1;
-			$events->paging["newer"] = (count($events->current) > $events->options['ept_archive_options']["archive_frontpage_events"])? 0: false;
+			$events->paging["newer"] = (count($events->current) > ($events->options['ept_archive_options']["archive_frontpage_events"] + $sticky_on_frontpage))? 0: false;
 			$events->paging["older"] = (count($events->past) > 0)? 2: false;
 
 			/* sort out the events to display */
@@ -1118,12 +1115,14 @@ class EventPostType
 				 * up to the maximum of the archive_frontpage_sticky option
 				 */
 				$stickycount = 0;
-				$toremove = array();
-				foreach ($events->current as $e) {
-					if (self::is_sticky($e) && ($stickycount < $events->options['ept_archive_options']["archive_frontpage_sticky"])) {
-						$events->stickies[] = $e;
-						$toremove[] = $e->ID;
-						$stickycount++;
+				if ($sticky_on_frontpage > 0) {
+					$toremove = array();
+					foreach ($events->current as $e) {
+						if ($stickycount < $sticky_on_frontpage) {
+							$events->stickies[] = $e;
+							$toremove = $e->ID;
+							$stickycount++;
+						}
 					}
 				}
 				/* remove sticky events from current container */
@@ -1190,39 +1189,39 @@ class EventPostType
 			/* links between pages in future events */
 			if ($events->paging["newer"] !== false) {
 				/* events to display in the more distant future */
-				$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/%s">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->options["post_type_future_slug"], $events->paging["newer"], __('Future Events', 'event-post-type'));
+				$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/%s">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["newer"], __('Future Events', 'event-post-type'));
 			}
 			if ($events->paging["older"] === false || $events->paging["older"] == 1) {
 				/* older events are on the main events archive page */
-				$out .= sprintf('<div class="older-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], __('Current Events', 'event-post-type'));
+				$out .= sprintf('<div class="older-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('Current Events', 'event-post-type'));
 			} else {
 				/* future events are being paged */
-				$out .= sprintf('<div class="older-events"><a href="%s/%s/%s/%d">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->options["post_type_future_slug"], $events->paging["older"], __('Older Events', 'event-post-type'));
+				$out .= sprintf('<div class="older-events"><a href="%s/%s/%s/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["older"], __('Older Events', 'event-post-type'));
 			}
 		} else {
 			if ($events->paging["newer"] !== false) {
 				switch ($events->paging["newer"]) {
 					case 0:
 						/* link to future events page from main events archive */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->options["post_type_future_slug"], __('Future Events', 'event-post-type'));
+						$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], __('Future Events', 'event-post-type'));
 						break;
 					case 1:
 						/* link to main events archive from first page of past events */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], __('Current Events', 'event-post-type'));
+						$out .= sprintf('<div class="newer-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('Current Events', 'event-post-type'));
 						break;
 					default:
 						/* link to more recent past events */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->paging["newer"], __('More Recent Events', 'event-post-type'));
+						$out .= sprintf('<div class="newer-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["newer"], __('More Recent Events', 'event-post-type'));
 						break;
 				}
 			}
 			if ($events->paging["older"] !== false) {
 				switch ($events->paging["older"]) {
 					case 1:
-						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->paging["older"], __('Current Events', 'event-post-type'));
+						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('Current Events', 'event-post-type'));
 						break;
 					default:
-						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options["post_type_slug"], $events->paging["older"], __('Older Events', 'event-post-type'));
+						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('Older Events', 'event-post-type'));
 						break;
 				}
 			}
@@ -1256,7 +1255,7 @@ class EventPostType
 	/* checks to see if an event is sticky */
 	public static function is_sticky($event)
 	{
-		return $event->meta["event_is_sticky"];
+		return (bool) $event->meta["event_is_sticky"];
 	}	
 
 	/**
@@ -1373,6 +1372,9 @@ class EventPostType
 	{
 		/* get all events and filter on month and year if necessary */
 		$feedEvents = self::get_events_for($year, $month);
+		$host = @parse_url(home_url());
+		$host = $host['host'];
+		$self = esc_url('http' . ( (isset($_SERVER['https']) && $_SERVER['https'] == 'on') ? 's' : '' ) . '://'	. $host	. stripslashes($_SERVER['REQUEST_URI']));
 		$events = array();
 		if (count($feedEvents)) {
 			foreach ($feedEvents as $event) {
@@ -1387,6 +1389,7 @@ class EventPostType
 				$eventObj->start = date('c', $eventObj->start_unixtimestamp);
 				$eventObj->end = date('c', $eventObj->end_unixtimestamp);
 				$eventObj->dateStr = esc_js(strip_tags(self::get_date($event->ID)));
+				$eventObj->content = $eventObj->dateStr . "\n" . esc_js(apply_filters('the_excerpt_rss', $event->post_content));
 				$eventObj->url = get_permalink($event->ID);
 				$eventObj->publish_date = $event->post_date;
 				$event_categories = wp_get_post_categories($event->ID);
@@ -1427,6 +1430,30 @@ class EventPostType
 				}
 				$out .= "END:VCALENDAR\n";
 				return $out;
+			case "rss":
+				header('Content-Type: ' . feed_content_type('rss-http') . '; charset=' . get_option('blog_charset'), true);
+				echo '<?xml version="1.0" encoding="'.get_option('blog_charset').'"?'.'>';
+				echo '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/"';
+				do_action('rss2_ns');
+				echo '><channel>';
+				printf('<title>%s - %s</title>', get_bloginfo_rss('name'), _('Events', 'event-post-type'));
+				printf('<atom:link href="%s" rel="self" type="application/rss+xml" />', $self_link);
+				printf('<link>%s</link>', get_bloginfo_rss('url'));
+				printf('<lastBuildDate>%s</lastBuildDate>', mysql2date('D, d M Y H:i:s +0000', get_lastpostmodified('GMT'), false));
+				printf('<language>%s</language>', get_bloginfo_rss( 'language' ));
+				printf('<sy:updatePeriod>%s</sy:updatePeriod>', apply_filters( 'rss_update_period', 'hourly' ));
+				printf('<sy:updateFrequency>%s</sy:updateFrequency>', apply_filters( 'rss_update_frequency', '1' ));
+				foreach ($events as $event) {
+					print('<item>');
+					printf('<title>%s</title>', apply_filters( 'the_title_rss', $event->title ));
+					printf('<link>%s</link>', apply_filters('the_permalink_rss', EventPostType::get_url($event->id)));
+					printf('<pubDate>%s</pubDate>', mysql2date('D, d M Y H:i:s +0000', get_post_time('Y-m-d H:i:s', true), $event->id));
+					printf('<dc:creator>%s</dc:creator>', get_the_author_meta('display_name', $event->id));
+					printf('<description><![CDATA[%s]]></description>', $event->content);
+					print('</item>');
+				}
+				print('</channel></rss>');
+				break;
 			default:
 				return "";
 				break;
