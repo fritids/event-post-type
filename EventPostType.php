@@ -58,6 +58,9 @@ class EventPostType
 	 */
 	public static function register()
 	{
+		/* load the plugin options and help */
+		require(dirname(__FILE__) . '/EventPostTypeAdmin.php');
+
 		/* run the upgrade routine */
 		add_action('init', array('EventPostType', 'upgrade'), 182 );
 
@@ -328,7 +331,7 @@ class EventPostType
 		/* Use nonce for verification */
 		printf('<input type="hidden" name="event_dates" id="event_dates" value="%s" />', wp_create_nonce('events_custom_dates'));
 		/* fields for data entry */
-		printf('<p id="event_dates_start" class="event_datep"><label for="event_dates_start_date"></label><br />', __( 'Event start', 'event-post-type' ));
+		printf('<p id="event_dates_start" class="event_datep"><label for="event_dates_start_date">%s</label><br />', __( 'Event start', 'event-post-type' ));
 		printf('<input type="text" id="event_dates_start_date" name="event_dates_start_date" value="%s" size="25" class="datepicker" />', $start_date);
 		printf('<input type="text" id="event_dates_start_time" name="event_dates_start_time" value="%s" size="25" class="timepicker" /></p>', $start_time);
 		$checked = $event_data["event_allday"]? ' checked="checked"': '';
@@ -1613,37 +1616,31 @@ class EventPostType
 		return $out;
 	}
 
-
-	/**
-	 * shortcode for events
-	 */
-	public static function events_shortcode($atts)
-	{
-		return self::format_events($atts);	
-	}
+	/********************************************
+	 * WIDGETS AND SHORTCODES                   *
+	 ********************************************/
 
 	/**
 	 * function to retrieve a formatted list of events
 	 * @param array $options
 	 * @return array
 	 */
-	public static function format_events($opts = array())
+	public static function events_output($opts = array())
 	{
 		/* get plugin options and function options */
 		$options = EventPostTypeOptions::get_plugin_options();
 		$formats = array_keys(EventPostTypeOptions::get_formats());
 		$opts = shortcode_atts(array(
-			'category' => '',
-			'tag' => '',
+			'events_category' => '',
+			'events_tag' => '',
 			'start_date' => '',
 			'end_date' => '',
-			'current' => 1,
-			'sticky' => 0,
-			'class' => '',
+			'prioritise_sticky' => 0,
+			'container_class' => '',
+			'event_class' => '',
 			'heading' => 'h3',
 			'format' => $formats[0],
-			'max' => $options['ept_widget_options']["max"],
-			'min' => 2,
+			'events_num' => $options['ept_widget_options']["max"],
 			'size' => 'thumbnail',
 			'include' => '',
 			'exclude' => ''
@@ -1791,6 +1788,8 @@ class EventPostType
 		$options = EventPostTypeOptions::get_plugin_options();
 		if (has_filter("event-format")) {
 			return apply_filters("event-format", $evt, $opts, $options);
+		} else {
+
 		}
 		switch ($format) {
 			case "full":
@@ -1827,50 +1826,233 @@ class EventPostType
 		}
 	}
 
+	/**
+	 * shortcode for events
+	 */
+	public static function events_shortcode($atts)
+	{
+		$available_attributes = array(
+			'preset',
+			'format',
+			'category_filter',
+			'tag_filter',
+			'start',
+			'end',
+			'thumbnail_size',
+			'prioritise_sticky',
+			'num'
+		);
+		
+		return self::events_output($atts);	
+	}
+
+	/**
+	 * displays the settings form for the events widget
+	 */
 	public static function widget_form($instance, $widget)
 	{
-		$fields = array(
-			'category' => '',
-			'tag' => '',
-			'start_date' => '',
-			'end_date' => '',
-			'current' => 1,
-			'sticky' => 0,
-			'class' => '',
-			'format' => 'list',
-			'limit' => $options["max"],
-			'min' => 2,
-			'size' => 'thumbnail',
-			'include' => '',
-			'exclude' => ''
-		);
-		$presets = array(
-			"next_latest_with_calendar" => "Next/latest event with calendar (4 columns)",
-			"next_latest_2col" => "Next/latest 2 events in 2 columns",
-			"next_latest_3col" => "Next/latest 3 events in 3 columns",
-			"next_latest_4col" => "Next/latest 4 events in 4 columns"
-		);
-		print('<h3>Events Widget settings</h3>');
-		printf('<p>Select preset: <select name="%s" id="%s">', $widget->get_field_name('events_preset'), $widget->get_field_id('events_preset'));
-		foreach ($preset as $key => $label) {
-			$sel = ($instance['events_preset'] == $key)? ' selected="selected"': '';
+		printf('<h3>%s</h3>', __('Events Widget settings', 'event-post-type'));
+		/* event format presets */
+		$presets = self::get_events_format_presets();
+		$sel = (!isset($instance['events_preset']) || !in_array($instance['events_preset'], array_keys($presets)) || $instance['events_preset'] == "none")? ' selected="selected"': '';
+		printf('<p>%s <select name="%s" id="%s" class="events-preset-select"><option value="none"%s>%s</option>', __('Format:', 'event-post-type'), $widget->get_field_name('events_preset'), $widget->get_field_id('events_preset'), $sel, __('Select preset...', 'event-post-type'));
+		foreach ($presets as $key => $label) {
+			$sel = (isset($instance['events_preset']) && $instance['events_preset'] == $key)? ' selected="selected"': '';
 			printf('<option value="%s"%s>%s</option>', $key, $sel, $label);
 		}
 		print('</select></p>');
-		printf('<p><label for="%s">Display as:</label><select id="%s" name="%s">', $widget->get_field_id('events_format'), $widget->get_field_id('events_format'), $widget->get_field_name('events_format'));
-        foreach (array('Title & Time'=>'title','Title & Time + Excerpt'=>'title_excerpt','Title & Time + Excerpt + Thumbnail'=>'title_excerpt_thumbnail') as $name => $value) {
-        	$sel = ($value == $instance['events_format'])? ' selected="selected"': '';
-        	printf('<option value="%s"%s>%s</option>', $value, $sel, $name);
-        }
-		print('</select></p>');
-		printf('<p><label for="%s">Thumbnail size:</label>%s</p>', $widget->get_field_id('events_thumbnial_size'), self::get_image_sizes_select($widget->get_field_name('events_thumbnial_size'), $widget->get_field_id('events_thumbnial_size'), $instance['events_thumbnial_size']));
+		/* number of events to show */
+		$no = intval($instance['events_num']);
+		printf('<p class="input-events-num events-list"><label for="%s">%s</label><input type="text" id="%s" name="%s" value="%s" size="3" /></p>', $widget->get_field_id('events_num'), __('Number of events to display:', 'event-post-type'), $widget->get_field_id('events_num'), $widget->get_field_name('events_num'), $no);
 
+		/* format of event content */
+		if (!isset($instance['events_format'])) {
+			$instance['events_format'] = false;
+		}
+		printf('<div class="events-format events-list">$s</div>', self::get_format_select($widget->get_field_id('events_format'), $widget->get_field_name('events_format'), $instance['events_format'])); 
+		/* thumnbnail size */
+		if (!isset($instance['events_thumbnail_size'])) {
+			$instance['events_thumbnail_size'] = 'thumbnail';
+		}
+		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_thumbnail_size'), __('Thumbnail size:', 'event-post-type'), self::get_image_sizes_select($widget->get_field_name('events_thumbnail_size'), $widget->get_field_id('events_thumbnail_size'), $instance['events_thumbnail_size']));
+
+		/* whether to prioritise sticky events */
+		$chckd = (isset($instance['events_prioritise_sticky']) && ((bool) $instance['events_prioritise_sticky'] === true))? ' checked="checked"': '';
+		printf('<p class="events-list"><label for="%s"><input type="checkbox" id="%s" name="%s" value="1"%s /> %s</label></p>', $widget->get_field_id('events_prioritise_sticky'), $widget->get_field_id('events_prioritise_sticky'), $widget->get_field_name('events_prioritise_sticky'), $chckd, __('Check this box to prioritise sticky events.', 'event-post-type'));
+
+		/* filter for events category */
+		if (!isset($instance["events_category_filter"]) || !is_array($instance["events_category_filter"])) {
+			$instance["events_category_filter"] = array();
+		}
+		$category_filter = self::get_event_terms_select('event_category', $widget->get_field_id('events_category_filter'), $widget->get_field_name('events_category_filter'), $instance["events_category_filter"]);
+		if ($category_filter != '') {
+			printf('<h4>%s</h4>%s', __('Filter events by category', 'event-p[ost-type'), $category_filter);
+		}
+
+		/* filter for events tags */
+		if (!isset($instance["events_tag_filter"]) || !is_array($instance["events_tag_filter"])) {
+			$instance["events_tag_filter"] = array();
+		}
+		$tag_filter = self::get_event_terms_select('event_tag', $widget->get_field_id('events_tag_filter'), $widget->get_field_name('events_tag_filter'), $instance["events_tag_filter"]);
+		if ($tag_filter != '') {
+			printf('<h4>%s</h4>%s', __('Filter events by tag', 'event-post-type'), $tag_filter);
+		}
+
+		/* filter by date */
+		$start_date = (isset($instance['events_start']) && $instance['events_start'] != '')? date("d/m/Y", $instance["events_start"]): '';
+		$start_time = (isset($instance['events_start']) && $instance['events_start'] != '')? date("h:iA", $instance['events_start']): '';
+		$end_date = (isset($instance['events_end']) && $instance['events_end'] != '')? date("d/m/Y", $instance['events_end']): "";
+		$end_time = (isset($instance['events_end']) && $instance['events_end'] != '')? date("h:iA", $instance['events_end']): "";
+
+		printf('<h4>%s</h4>', __('Filter Events by date', 'event-post-type'));
+		printf('<p class="event_datep"><label for="%s">%s</label><br />', $widget->get_field_id('events_start_date'), __( 'Event start', 'event-post-type' ));
+		printf('<input type="text" id="" name="" value="%s" size="25" class="datepicker" />', $widget->get_field_id('events_start_date'), $widget->get_field_name('events_start_date'), $start_date);
+		printf('<input type="text" id="%s" name="%s" value="%s" size="25" class="timepicker" /></p>', $widget->get_field_id('events_start_time'), $widget->get_field_name('events_start_time'), $start_time);
+		printf('<p class="event_datep"><label for="%s">%s</label><br />', $widget->get_field_id('events_end_date'), __( 'Event end', 'event-post-type' ));
+		printf('<input type="text" id="" name="" value="%s" size="25" class="datepicker" />', $widget->get_field_id('events_end_date'), $widget->get_field_name('events_end_date'), $end_date);
+		printf('<input type="text" id="%s" name="%s" value="%s" size="25" class="timepicker" /></p>', $widget->get_field_id('events_end_time'), $widget->get_field_name('events_end_time'), $end_time);
 
 	}
 
-	public static function process_widget_form($new_values, &$instance)
+	/**
+	 * processes values returned by the widget form
+	 */
+	public static function process_widget_form($new_values, $instance)
 	{
+		return self::validate_display_options($new_values, $instance);
+	}
 
+	/**
+	 * valuidates the options passed to the widget or shortcode
+	 */
+	private static function validate_display_options($new_values, $old_values = false)
+	{
+		$defaults = self::get_default_display_options();
+		if (!$old_values) {
+			$values = $defaults;
+		} else {
+			$values = wp_parse_args($old_values, $defaults);
+		}
+
+		/* validate format preset */
+		$presets = self::get_events_format_presets();
+		if (in_array($new_values['events_preset'], array_keys($presets))) {
+			$values['events_preset'] = $new_values['events_preset'];
+		}
+
+		/* validate content format */
+		$content_formats = self::get_formats();
+		if (!has_filter("event-format")) {
+			if (in_array($new_values['events_format'], array_keys($content_formats))) {
+				$values['events_format'] = $new_values['events_format'];
+			}
+		} else {
+			$values['events_format'] = 'user';
+		}
+
+		/* validate category and tag filters */
+		if (isset($new_values["events_category_filter"]) && is_array($new_values["events_category_filter"])) {
+			$values["events_category_filter"] = $new_values["events_category_filter"];
+		}
+		if (isset($new_values["events_tag_filter"]) && is_array($new_values["events_tag_filter"])) {
+			$values["events_tag_filter"] = $new_values["events_tag_filter"];
+		}
+
+		/* validate start and end time filters */
+		$start_date = isset($new_values['events_start_date'])? $new_values['events_start_date']: "";
+		$start_time = isset($new_values['events_start_time'])? $new_values['events_start_time']: "";
+		$end_date = isset($new_values['events_end_date'])? $new_values['events_end_date']: "";
+		$end_time = isset($new_values['events_end_time'])? $new_values['events_end_time']: "";
+		$values['events_start'] = self::parse_date($start_date, $start_time);
+		$values['events_end'] = self::parse_date($end_date, $end_time);
+
+		/* copy remaining values */
+		$values['events_thumbnail_size'] = $new_values['events_thumbnail_size'];
+		$values['events_prioritise_sticky'] = (isset($new_values['events_prioritise_sticky']) && intval($new_values['events_prioritise_sticky']) > 0);
+		$values['events_num'] = intval($new_values['events_num']);
+
+		return $values;
+	}
+
+	/**
+	 * prints output for the events widget
+	 */
+	public static function widget_output($instance, $post)
+	{
+		print(self::events_output($instance));
+	}
+
+	/**
+	 * gets a set of presets for the format of events in the events widget
+	 */
+	private static function get_events_format_presets()
+	{
+		return array(
+			"calendar" => __("Calendar only", 'event-post-type'),
+			"list_with_calendar" => __("Next/latest events with calendar", 'event-post-type'),
+			"list" => __("Next/latest events as a list", 'event-post-type')
+		);
+	}
+
+	/**
+	 * gets a set of presets for event content formatting
+	 */
+	private static function get_formats()
+	{
+		return array(
+			'title' => __('Title & date', 'event-post-type'),
+			'title_excerpt' => __('Title, date & excerpt', 'event-post-type'),
+			'title_excerpt_thumbnail' => __('Title, date, excerpt & thumbnail', 'event-post-type'),
+			'title_content' => __('Title, date & content', 'event-post-type'),
+			'title_content_thumbnail' => __('Title, date, content & thumbnail', 'event-post-type'),
+		);
+	}
+
+	/**
+	 * gets default display options for widget and shortcodes
+	 */
+	private static function get_default_display_options()
+	{
+		$content_formats = self::get_formats();
+		return array(
+			'events_preset' => 'none',
+			'events_format' => array_pop(array_keys($content_formats)),
+			'events_category_filter' => array(),
+			'events_tag_filter' => array(),
+			'events_start' => '',
+			'events_end' => '',
+			'events_thumbnail_size' => '',
+			'events_prioritise_sticky' => true,
+			'events_num' => ''
+		);
+	}
+
+	/**
+	 * gets a select list of output formats
+	 * checks to see if a filter has been registered on "event-format"
+	 */
+	public static function get_format_select($id, $name, $selected = false)
+	{
+		$out = "";
+		if (!has_filter("event-format")) {
+			$out .= '<ul>';
+			$suffix = 1;
+			$formats = self::get_formats();
+			if (!$selected || !in_array($selected, array_keys($formats))) {
+				$selected = array_shift(array_keys($formats));
+			}
+			foreach ($formats as $fmt => $desc) {
+				$id .= "_" . $suffix;
+				$chckd = ($fmt === $selected)? ' checked="checked"': '';
+				$out .= sprintf('<li><input type="radio" name="%s" id="%s" value="%s"%s /> %s</li>', $name, $id, $fmt, $chckd, $desc);
+				$suffix++;
+			}
+			$out .= '</ul>';
+			return $out;
+		} else {
+			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $name, $id);
+		}
+		return $out;
 	}
 
 	/**
@@ -1879,37 +2061,75 @@ class EventPostType
      */
     public static function get_image_sizes_select($select_name = '', $select_id = '', $selected = '')
     {
-		global $_wp_additional_image_sizes;
-        $sizes = array();
-        $out = "";
-		foreach ( get_intermediate_image_sizes() as $s ) {
-			$sizes[$s] = array( 'name' => '', 'width' => '', 'height' => '', 'crop' => FALSE );
-			/* Read theme added sizes or fall back to default sizes set in options... */
-			$sizes[$s]['name'] = $s;
-			if ( isset( $_wp_additional_image_sizes[$s]['width'] ) ) {
-				$sizes[$s]['width'] = intval( $_wp_additional_image_sizes[$s]['width'] ); 
-			} else {
-				$sizes[$s]['width'] = get_option( "{$s}_size_w" );
+		$out = "";
+		if (!has_filter("event-format")) {
+			global $_wp_additional_image_sizes;
+	        $sizes = array();
+			foreach ( get_intermediate_image_sizes() as $s ) {
+				$sizes[$s] = array( 'name' => '', 'width' => '', 'height' => '', 'crop' => FALSE );
+				/* Read theme added sizes or fall back to default sizes set in options... */
+				$sizes[$s]['name'] = $s;
+				if ( isset( $_wp_additional_image_sizes[$s]['width'] ) ) {
+					$sizes[$s]['width'] = intval( $_wp_additional_image_sizes[$s]['width'] ); 
+				} else {
+					$sizes[$s]['width'] = get_option( "{$s}_size_w" );
+				}
+				if ( isset( $_wp_additional_image_sizes[$s]['height'] ) ) {
+					$sizes[$s]['height'] = intval( $_wp_additional_image_sizes[$s]['height'] );
+				} else {
+					$sizes[$s]['height'] = get_option( "{$s}_size_h" );
+				}
+				if ( isset( $_wp_additional_image_sizes[$s]['crop'] ) ) {
+					$sizes[$s]['crop'] = intval( $_wp_additional_image_sizes[$s]['crop'] );
+				} else {
+					$sizes[$s]['crop'] = get_option( "{$s}_crop" );
+				}
 			}
-			if ( isset( $_wp_additional_image_sizes[$s]['height'] ) ) {
-				$sizes[$s]['height'] = intval( $_wp_additional_image_sizes[$s]['height'] );
-			} else {
-				$sizes[$s]['height'] = get_option( "{$s}_size_h" );
+			if (count($sizes)) {
+				$out .= sprintf('<select id="%s" name="%s">', $select_id, $select_name);
+				foreach ($sizes as $s ) {
+					$cropped = $s['crop']? " - cropped": "";
+					$sel = ($s['name'] == $selected)? ' selected="selected"': '';
+					$out .= sprintf('<option value="%s"%s>%s (%s x %s%s)</option>', $s['name'], $sel, $s['name'], $s['width'], $s['height'], $cropped);
+				}
+				$sel = (!in_array($selected, array_keys($sizes)))? ' selected="selected"': '';
+				$custom_value = (!in_array($selected, array_keys($sizes)))? $selected: '';
+				printf('<option value="custom"%s>%s</option></select><br /><input type="text" name="thumbnail_size_input" id="thumbnail_size_input" size="7" value="%s" />', __('Custom size', 'event-post-type'), $sel, $custom_value);
+				printf('<p id="custom_thumbnail_desc"><em>%s</em></p>', __('Custom settings consist of two numbers separated by a comma. These represent the width and height of the cropped image.', 'event-post-type'));
 			}
-			if ( isset( $_wp_additional_image_sizes[$s]['crop'] ) ) {
-				$sizes[$s]['crop'] = intval( $_wp_additional_image_sizes[$s]['crop'] );
-			} else {
-				$sizes[$s]['crop'] = get_option( "{$s}_crop" );
-			}
+		} else {
+			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $select_name, $select_id);
 		}
-		if (count($sizes)) {
-			$out .= sprintf('<select id="%s" name="%s">', $select_id, $select_name);
-			foreach ($sizes as $s ) {
-				$cropped = $s['crop']? " - cropped": "";
-				$sel = ($s['name'] == $selected)? ' selected="selected"': '';
-				$out .= sprintf('<option value="%s"%s>%s (%s x %s%s)</option>', $s['name'], $sel, $s['name'], $s['width'], $s['height'], $cropped);
+		return $out;
+	}
+
+	/**
+	 * get event terms select
+	 * returns a multiple select list for event categories or terms
+	 */
+	public static function get_event_terms_select($tax = false, $field_id = '', $field_name = '', $selected = array())
+	{
+		$out = '';
+		$taxonomies = array("event_category", "event_tag");
+		if (!$tax || !in_array($tax, $taxonomies) || empty($field_name) || empty($field_id)) {
+			return $out;
+		}
+		$args = array(
+			'hide_empty' => false
+		);
+		$terms = get_terms($tax, $args);
+		if (is_array($terms) && count($terms)) {
+			$out .= sprintf('<p class="select-%s">', $tax);
+			$count = 1;
+			$inputs = array();
+			$fname = $field_name . '[]';
+			foreach ($terms as $term) {
+				$sel = in_array($term->slug, $selected)? ' checked="checked"': '';
+				$fid = $field_id . '-' . $count;
+				$inputs[] = sprintf('<label for="%s"><input type="checkbox" id="%s" name="%s"%s />%s</label>', $fid, $fid, $fname, $sel, $term->name);
+				$count++;
 			}
-			$out .= '</select>';			
+			$out .= implode('<br />', $inputs) . '</p>';
 		}
 		return $out;
 	}
@@ -2043,151 +2263,42 @@ class EventPostType
 EventPostType::register();
 }
 
-if (0 && !class_exists('Widget_EventsPostTypeList') ) :
+if (0 && !class_exists('Widget_EventsPostType') ) :
 /**
- * widget for events lists
+ * widget for events
  * @author Peter Edwards <bjorsq@gmail.com>
  * @version 1.2
  * @package WordPress
  * @subpackage EventPostType_Plugin
  */
-class Widget_EventsPostTypeList extends WP_Widget {
+class Widget_EventsPostType extends WP_Widget {
 
-	function Widget_EventsPostTypeList() {
-		$widget_ops = array('classname' => 'widget_ept_list', 'description' => 'A list of upcoming and recent Events' );
-		$this->WP_Widget('ept_list', 'Events List', $widget_ops);
+	function Widget_EventsPostType() {
+		$widget_ops = array('classname' => 'widget_ept_list', 'description' => 'Widget to display events as a list, calendar or a combination of the two' );
+		$this->WP_Widget('ept_widget', 'Events Widget', $widget_ops);
 	}
 
 	function widget( $args, $instance )
 	{
 		global $post;
-		if (EventPostType::is_event()) {
-			return;
-		}
 		extract($args);
 		echo $before_widget;
 		echo '<div id="events_widget_wrap">';
-		echo EventPostType::format_events($instance);
+		echo EventPostType::widget_output($instance, $post);
 		echo '</div>';
 		echo $after_widget;
 	}
 
-	function update( $new_instance, $old_instance ) {
-		$options = EventPostTypeOptions::get_plugin_options();
-		$instance = $old_instance;
-		$instance['category'] = trim($new_instance['category']);
-		$instance['tag'] = trim($new_instance['tag']);
-		$instance['start_date'] = (strtotime($new_instance['start_date']) === false)? '': $new_instance['start_date'];
-		$instance['end_date'] = (strtotime($new_instance['end_date']) === false)? '': $new_instance['end_date'];
-		$instance['current'] = isset($new_instance["current"])? 1: 0;
-		$instance['sticky'] = isset($new_instance["sticky"])? 1: 0;
-		$instance['class'] = trim(esc_attr($new_instance['class']));
-		$instance['format'] = in_array($new_instance['format'], array_keys(EventPostTypeOptions::$formats))? $new_instance['format']: '';
-		$possible_sizes = get_intermediate_image_sizes();
-		if (in_array($new_instance['thumbnail_size_select'], $possible_sizes)) {
-			$instance['size'] = $new_instance['thumbnail_size_select'];
-		} elseif ($new_instance['thumbnail_size_select'] == "custom") {
-			if (preg_match('/^([0-9]+),([0-9]+)$', $new_instance['thumbnail_size_input'], $matches)) {
-				$instance['size'] = $new_instance['thumbnail_size_input'];
-			} else {
-				$instance['size'] = 'thumbnail';
-			}
-		} else {
-			$instance['size'] = 'thumbnail';
-		}
-		$instance['include'] = trim($new_instance['include']);
-		$instance['exclude'] = trim($new_instance['exclude']);
-		$instance['max'] = intVal($new_instance['max']) > 0? intVal($new_instance['max']): '';
-		return $instance;
+	function update( $new_instance, $old_instance )
+	{
+		return EventPostType::process_widget_form($new_instance, $old_instance);
 	}
 
 	function form( $instance )
 	{
-		global $ept;
-		$instance = extract(wp_parse_args( (array) $instance, EventPostTypeOptions::get_plugin_options('ept_widget_options') ));
-?>
-		<fieldset><legend>Widget output</legend>
-
-		<p><label for="<?php echo $this->get_field_id('max'); ?>">Maximum number events to show:</label>
-		<?php echo $this->get_number_select($this->get_field_id('max'), $this->get_field_name('max'), intVal($max)); ?></p>
-
-		<p><label for="<?php echo $this->get_field_id('current'); ?>"><input type="checkbox" id="<?php echo $this->get_field_id('current'); ?>" name="<?php echo $this->get_field_name('current'); ?>"<?php if ($current) { echo ' checked="checked"'; } ?> /> Check this box to show only future events</label></p>
-
-		<p><label for="<?php echo $this->get_field_id('sticky'); ?>"><input type="checkbox" id="<?php echo $this->get_field_id('sticky'); ?>" name="<?php echo $this->get_field_name('sticky'); ?>"<?php if ($sticky) { echo ' checked="checked"'; } ?> /> Check this box to show only sticky events</label></p>
-
-		<p><label for="<?php echo $this->get_field_id('class'); ?>">Class for events list:</label>
-		<input maxlength="255" size="20" id="<?php echo $this->get_field_id('class'); ?>" name="<?php echo $this->get_field_name('class'); ?>" type="text" value="<?php echo esc_attr($class); ?>" /></p>
-
-		<?php if (!has_filter("event-format")) : ?>
-		<p><label for="<?php echo $this->get_field_id('format'); ?>">Format for listed events:</label>
-		<?php echo EventPostTypeOptions::get_format_select($this->get_field_id('format'), $this->get_field_name('format'), $format); ?></p>
-		<?php else: ?>
-		<input type="hidden" name="<?php echo $this->get_field_name('format'); ?>" id="<?php echo $this->get_field_id('format'); ?>" value="user" />
-		<?php endif; ?>
-
-		</fieldset>
-
-		<fieldset><legend>Include/Exclude specific events</legend>
-		<p><label for="<?php echo $this->get_field_id('include'); ?>">Include specific events in the list:</label><input maxlength="255" size="20" id="<?php echo $this->get_field_id('include'); ?>" name="<?php echo $this->get_field_name('include'); ?>" type="text" value="<?php echo esc_attr($include); ?>" /></p>
-		<p><label for="<?php echo $this->get_field_id('exclude'); ?>">Include specific events in the list:</label><input maxlength="255" size="20" id="<?php echo $this->get_field_id('exclude'); ?>" name="<?php echo $this->get_field_name('exclude'); ?>" type="text" value="<?php echo esc_attr($exclude); ?>" /></p>
-		</fieldset>
-
-		<fieldset><legend>Filter Events by taxonomy</legend>
-		<p><label for="<?php echo $this->get_field_id('category'); ?>">Filter by Category:</label>
-		<input maxlength="255" size="20" id="<?php echo $this->get_field_id('category'); ?>" name="<?php echo $this->get_field_name('category'); ?>" type="text" value="<?php echo esc_attr($category); ?>" /></p>
-
-		<p><label for="<?php echo $this->get_field_id('tag'); ?>">Filter by Tags:</label>
-		<?php echo $this->get_number_select($this->get_field_id('tag'), $this->get_field_name('tag'), $tag); ?></p>
-		</fieldset>
-		
-		<fieldset><legend>Filter Events by date</legend>
-		<p><label for="<?php echo $this->get_field_id('start_date'); ?>">Start date:</label>
-		<input maxlength="255" size="20" id="<?php echo $this->get_field_id('start_date'); ?>" name="<?php echo $this->get_field_name('start_date'); ?>" type="text" value="<?php echo esc_attr($start_date); ?>" /></p>
-		<p><label for="<?php echo $this->get_field_id('end_date'); ?>">End date:</label>
-		<input maxlength="255" size="20" id="<?php echo $this->get_field_id('end_date'); ?>" name="<?php echo $this->get_field_name('end_date'); ?>" type="text" value="<?php echo esc_attr($end_date); ?>" /></p>
-		</fieldset>
-
-<?php
+		EventPostType::widget_form($instance, $this);
 	}
 	
-	function get_number_select($id, $name, $selected, $max = 10)
-	{
-		$out = sprintf('<select name="%s" id="%s"><option value="0"></option>', $name, $id);
-		for ($i = 1; $i <= $max; $i++) {
-			$sel = $i == $selected? ' selected="selected"': '';
-			$out .= sprintf('<option value="%s"%s>%s</option>', $i, $sel, $i);
-		}
-		$out .= '</select>';
-		return $out;
-	}
-
-	/**
-	 * set size of thumbnail to use in longer listing formats
-	 * @uses get_intermediate_image_sizes()
-	 */
-	public static function get_thumbnail_size_select()
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options['thumbnail_size']) && $options['thumbnail_size'] != "")? $options['thumbnail_size']: "";
-		if (!has_filter("event-format")) {
-			$sizes = get_intermediate_image_sizes();
-			print('<select id="thumbnail_size_select" name="thumbnail_size_select">');
-			foreach ($sizes as $size) {
-				$sel = $option_value == $size? ' selected="selected"': '';
-				printf('<option value="%s"%s>%s</option>', $size, $sel, $size);
-			}
-			$sel = !in_array($option_value, $sizes)? ' selected="selected"': '';
-			$custom_value = !in_array($option_value, $sizes)? $option_value: '';
-			printf('<option value="custom"%s>Custom&hellip;</option></select><br /><input type="text" name="thumbnail_size_input" id="thumbnail_size_input" size="7" value="%s" />', $sel, $custom_value);
-		} else {
-			$option_value = "user";
-			print('(User defined)');
-		}
-		printf('<input type="hidden" id="ept_plugin_options_thumbnail_size" name="%s[thumbnail_size]" value="%s" />', $group, $option_value);
-		printf('<p id="custom_thumbnail_desc"><em>%s</em></p>', __('Custom settings consist of two numbers separated by a comma. These represent the width and height of the cropped image.', 'event-post-type'));
-	}
 }/* end of widget class definition */
 
 /* initialise widget */
@@ -2237,916 +2348,3 @@ add_action( 'widgets_init', create_function('', 'return register_widget("Widget_
 
 endif;
 
-if (!class_exists('EventPosttypeHelp' )) :
-/**
- * Class to add help to the Admin screen for the Event post type
- * @author Peter Edwards <bjorsq@gmail.com>
- * @version 1.2
- * @package WordPress
- * @subpackage EventPostType_Plugin
- */
-class EventPostTypeHelp
-{
-	/**
-	 * adds an action to register the help tabs with the Wordpress API
-	 */
-	public static function register()
-	{
-		/* adds the help to the Wordpress help system */
-		add_action( 'admin_head', array('EventPostTypeHelp', 'add_help') );
-        /* adds a link to the help page from the plugins page */
-        add_filter( 'plugin_action_links', array('EventPostTypeHelp', 'add_help_page_link'), 10, 2 );
-	}
-
-	/**
-	 * adds a link to the help page from the plugins listing page
-	 * called using the plugin_action_links filter
-	 */
-	public static function add_help_page_link($links, $file)
-	{
-		if ($file == plugin_basename(__FILE__)) {
-			$help_page_link = '<a href="edit.php?post_type=event&amp;page=event_options&amp;tab=ept_help">Help</a>';
-			array_unshift($links, $help_page_link);
-		}
-		return $links;
-	}
-
-	/**
-	 * adds help to the Wordpress help system
-	 * this will include HTML from the /doc directory and place it in 
-	 * help tabs in the Wordpress help system
-	 */
-	public static function add_help()
-	{
-    	$index_tab = array(
-            "id" => "event-post-type-help",
-            "title" => "Events",
-            "callback" => array( 'EventPostTypeHelp', 'help_index' )
-    	);
-    	$options_tab = array(
-            "id" => "event-post-type-options",
-            "title" => "Events options",
-            "callback" => array( 'EventPostTypeHelp', 'help_options' )
-    	);
-    	$shortcode_tab = array(
-            "id" => "event-post-type-shortcode",
-            "title" => "Events shortcode",
-            "callback" => array( 'EventPostTypeHelp', 'help_shortcode' )
-    	);
-    	$widget_tab = array(
-            "id" => "event-post-type-widget",
-            "title" => "Events widget",
-            "callback" => array( 'EventPostTypeHelp', 'help_widgets' )
-    	);
-    	$screen_tab = array(
-    		"id" => "debug-screen-object-tab",
-    		"title" => "screen",
-    		"callback" => array( 'EventPostTypeHelp', 'help_screen' )
-    	);
-    	$screen = get_current_screen();
-    	if ($screen->post_type == "event") {
-    		$screen->set_help_sidebar(self::help_sidebar());
-    		$screen->add_help_tab($index_tab);
-    		$screen->add_help_tab($screen_tab);
-	    	switch ($screen->id) {
-	    		case "post":
-	    		case "edit-post":
-	    			$screen->add_help_tab($options_tab);
-	    			$screen->add_help_tab($shortcode_tab);
-	    			$screen->add_help_tab($widget_tab);
-	    			break;
-	    	}
-		}  	
-    }
-
-    /**
-     * Adds help to the plugin options page (in a tab)
-     */
-    public static function getAdminHelpPage()
-    {
-    	$sections = array(
-    		"index"     => __('EventPostType plugin help', 'event-post-type'),  
-    		"options"   => __('Plugin options', 'event-post-type'), 
-    		"shortcode" => __('Shortcode', 'event-post-type'), 
-    		"widgets"   => __('Widgets', 'event-post-type')
-    	);
-    	$out = '<div id="ept-help-tabs"><ul>';
-    	$content = "";
-    	foreach ($sections as $section => $name) {
-    		$out .= sprintf('<li><a href="#%s-content">%s</a></li>', $section, $name);
-	    	$content .= sprintf('<div id="%s-content">%s</div>', $section, self::get_contents($section . ".html"));
-	   	}
-	   	$out .= '</ul>';
-	   	$out .= $content;
-	   	$out .= '</div>';
-	   	echo $out;
-    }
-
-    /**
-     * gets the content for the help sidebar
-     */
-    public static function help_sidebar()
-    {
-    	return self::get_contents("sidebar.html");
-    }
-
-    /**
-     * gets the content for the help index
-     */
-    public static function help_index()
-    {
-    	echo self::get_contents("index.html");
-    }
-
-    /**
-     * gets the content for the event options help
-     */
-    public static function help_options()
-    {
-    	echo self::get_contents("options.html");
-    }
-
-    /**
-     * gets the content for the shortcode help
-     */
-    public static function help_shortcode()
-    {
-    	echo self::get_contents("shortcode.html");
-    }
-
-    /**
-     * gets the content for the widget help
-     */
-    public static function help_widgets()
-    {
-    	echo self::get_contents("widgets.html");
-    }
-
-    public static function help_screen()
-    {
-    	print_r(get_current_screen());
-    }
-
-    /**
-     * returns the contents of a file in the doc/[locale]/ directory
-     */
-    private static function get_contents($filename = "")
-    {
-    	if (trim($filename) !== "") {
-    		$path = plugin_dir_path(__FILE__) . 'doc/' . get_locale() . '/' . $filename;
-    		if (file_exists($path)) {
-    			return file_get_contents($path);
-    		}
-    	}
-    	return "";
-    }
-}
-EventPostTypeHelp::register();
-endif;
-
-/************************************************************
- * PLUGIN OPTIONS ADMINISTRATION							*
- ************************************************************/
-if ( ! class_exists('EventPostTypeOptions')) :
-/**
- * Class to add options for the Event post type
- * @author Peter Edwards <bjorsq@gmail.com>
- * @version 1.2
- * @package WordPress
- * @subpackage EventPostType_Plugin
- */
-class EventPostTypeOptions
-{
-
-	/**
-	 * register with the Wordpress API
-	 */
-	public static function register()
-	{
-		/* add a menu item to the Events Post type menu */
-		add_action( 'admin_menu', array('EventPostTypeOptions', 'add_plugin_admin_menu') );
-		/* register plugin admin options */
-		add_action( 'admin_init', array('EventPostTypeOptions', 'register_plugin_options') );
-	}
-
-	/**
-	 * add a submenu to the theme admin menu to access the theme settings page
-	 */
-	public static function add_plugin_admin_menu()
-	{
-		/* Plugin Options page */
-		$options_page = add_submenu_page("edit.php?post_type=event", "Events Options", "Events Options", "manage_options", "event_options", array('EventPostTypeOptions', "plugin_options_page") );
-	}
-
-	/**
-	 * registers settings and sections
-	 */
-	function register_plugin_options()
-	{
-		register_setting('ept_plugin_options', 'ept_plugin_options', array('EventPostTypeOptions', 'validate_ept_plugin_options'));
-		register_setting('ept_archive_options', 'ept_archive_options', array('EventPostTypeOptions', 'validate_ept_archive_options'));
-		register_setting('ept_widget_options', 'ept_widget_options', array('EventPostTypeOptions', 'validate_ept_widget_options'));
-		register_setting('ept_date_options', 'ept_date_options', array('EventPostTypeOptions', 'validate_ept_date_options'));
-				
-		/* main plugin options */
-		add_settings_section(
-			'main-options',
-			__('Main Plugin Options', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_section_text'),
-			'ept_plugin_options_section'
-		);
-		add_settings_field(
-			'post_type_slug',
-			__('Post type slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
-			'ept_plugin_options_section',
-			'main-options',
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "post_type_slug", 
-				"description" => __('This will form the basis of all URLs for the events plugin', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'post_type_future_slug',
-			__('Future events slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
-			'ept_plugin_options_section',
-			'main-options',
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "post_type_future_slug", 
-				"description" => __('This is used in the URL for events taking place in the future (beyond those shown on the archive page)', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'event_category_slug',
-			__('Event Category slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
-			'ept_plugin_options_section',
-			'main-options',
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "event_category_slug", 
-				"description" => __('This will form the basis of all URLs for event categories', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'event_tag_slug',
-			__('Event Tag slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
-			'ept_plugin_options_section',
-			'main-options',
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "event_tag_slug", 
-				"description" => __('This will form the basis of all URLs for event tags', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'enqueue_js',
-			_x('Enqueue Javascript', 'Whether to enqueue script from the plugin or from the theme', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
-			'ept_plugin_options_section', 
-			'main-options', 
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "enqueue_js",
-				"description" => sprintf( __('Check this box if you would like the script for the plugin to be loaded in the front end.<br />If this box is not checked, <a href="%s">download the script here and include it in your theme</a>.', 'event-post-type'), plugins_url('/js/EventPostType.min.js', __FILE__))
-			)
-		);
-        add_settings_field(
-        	'enqueue_css', 
-        	_x('Enqueue CSS', 'Whether to enqueue CSS from the plugin or from the theme', 'event-post-type'),
-        	array('EventPostTypeOptions', 'ept_setting_checkbox'),
-			'ept_plugin_options_section', 
-			'main-options',
-			array(
-				"settings-group" => 'ept_plugin_options', 
-				"fieldname" => "enqueue_css",
-				"description" => sprintf( __('Check this box if you would like the CSS for the plugin to be loaded in the front end.<br />If this box is not checked, <a href="%s">download the CSS here and include it in your theme</a>.', 'event-post-type'), plugins_url('/css/EventPostType.min.css', __FILE__))
-			)
-		);
-
-		/* archive page options */
-		add_settings_section(
-			'archive-options',
-			__('Events Archive Options', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_section_text'),
-			'ept_archive_options_section'
-		);
-		add_settings_field(
-			'archive_title',
-			__('Archive page title', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
-			'ept_archive_options_section',
-			'archive-options',
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_title", 
-				"description" => __('This title will be displayed at the top of all archive pages.', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_frontpage_content',
-			__('Archive page content', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_richtext'),
-			'ept_archive_options_section',
-			'archive-options',
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_content", 
-				"description" => __('Text to put at the top of the main archive page', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_search',
-			__('Display Search bar?', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
-			'ept_archive_options_section',
-			'archive-options',
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_search", 
-				"description" => __('The search bar includes Event specific search box, and a dropdown to filter by event category. Checking this box will display this bar at the top of all archive pages.', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_calendar',
-			__('Display calendar?', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
-			'ept_archive_options_section',
-			'archive-options',
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_calendar", 
-				"description" => __('This will place an events calendar on the archive pages.', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_frontpage_sticky',
-			__('Number of sticky events to display on the main events archive page', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_number'),
-			'ept_archive_options_section',
-			'archive-options',
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_frontpage_sticky", 
-				"description" => __('This will limit the number of upcoming &ldquo;sticky&rdquo; events displayed on the main archive and taxonomy archive pages', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_frontpage_events', 
-			__('Number of regular events to display on the main events archive page (excluding sticky events)', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_number'), 
-			'ept_archive_options_section', 
-			'archive-options', 
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_frontpage_events", 
-				"description" => __('The number of non-sticky events to display on the main archive page. This will be made up from upcoming events (in chronological order with the nearest first).', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_perpage', 
-			__('Number of events to display per page', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_number'), 
-			'ept_archive_options_section', 
-			'archive-options', 
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_perpage", 
-				"description" => __('Number of events displayed per page in the archive', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'archive_format', 
-			__('Format of events on archive pages', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_format'), 
-			'ept_archive_options_section', 
-			'archive-options', 
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_format", 
-				"description" => ""
-			)
-		);
-		add_settings_field(
-			'archive_thumbnail_size', 
-			__('Thumbnail size to use on archive pages', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_thumbnail'), 
-			'ept_archive_options_section', 
-			'archive-options', 
-			array(
-				"settings-group" => 'ept_archive_options', 
-				"fieldname" => "archive_thumbnail_size"
-			)
-		);
-
-		/* widget/shortcode options */
-		add_settings_section(
-			'widget-options',
-			__('Shortcode/Widget default options', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_section_text'), 
-			'ept_widget_options_section'
-		);
-		add_settings_field(
-			'current', 
-			__('Show current events?', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_checkbox'), 
-			'ept_widget_options_section', 
-			'widget-options', 
-			array(
-				"settings-group" => 'ept_widget_options', 
-				"fieldname" => "current", 
-				"description" => __('Check this box if the default is to show events which are in the future', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'sticky', 
-			__('Show only sticky events?', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_checkbox'), 
-			'ept_widget_options_section', 
-			'widget-options', 
-			array(
-				"settings-group" => 'ept_widget_options', 
-				"fieldname" => "sticky", 
-				"description" => __('Check this box if the default is to show only sticky events', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'max', 
-			__('Maximum number of events to display', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_number'), 
-			'ept_widget_options_section', 
-			'widget-options', 
-			array(
-				"settings-group" => 'ept_widget_options', 
-				"fieldname" => "max", 
-				"description" => ""
-			)
-		);
-		add_settings_field(
-			'format', 
-			__('Format of events list', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_format'), 
-			'ept_widget_options_section', 
-			'widget-options', 
-			array(
-				"settings-group" => 'ept_widget_options', 
-				"fieldname" => "format", 
-				"description" => ""
-			)
-		);
-		add_settings_field(
-			'thumbnail_size', 
-			__('Thumbnail size to use in longer listing formats', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_thumbnail'), 
-			'ept_widget_options_section', 
-			'widget-options', 
-			array(
-				"settings-group" => 'ept_widget_options', 
-				"fieldname" => "thumbnail_size"
-			)
-		);
-		
-		/* date format options */
-		add_settings_section(
-			'date-options', 
-			__('Date Display Options', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_section_date'), 
-			'ept_date_options_section'
-		);
-		add_settings_field(
-			'date_fmt', 
-			__('Date format', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "date_fmt", 
-				"description" => __('Use format strings for the <a href="http://www.php.net/manual/en/function.date.php">PHP <code>date()</code> function</a> here', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'time_fmt', 
-			__('Time format', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "time_fmt", 
-				"description" => __('Use format strings for the <a href="http://www.php.net/manual/en/function.date.php">PHP <code>date()</code> function</a> here', 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'date_label', 
-			__('Date label', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "date_label", 
-				"description" => __("Text used as a label preceding a date", 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'time_label', 
-			__('Time label', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "time_label", 
-				"description" => __("Text used as a label preceding a time", 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'date_time_separator', 
-			__('Date/Time separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "date_time_separator", 
-				"description" => __("Text used to separate dates and times", 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'date_separator', 
-			__('Date separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "date_separator", 
-				"description" => __("Text used to separate two dates when an event spans multiple days", 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'time_separator',
-			__('Time separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "time_separator", 
-				"description" => __("Text used to separate two times when an event takes place between two times on the same day", 'event-post-type')
-			)
-		);
-		add_settings_field(
-			'allday', 
-			__('All day event indicator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
-			'ept_date_options_section', 
-			'date-options', 
-			array(
-				"settings-group" => 'ept_date_options', 
-				"fieldname" => "allday", 
-				"description" => __("Text placed after a date for an all day event", 'event-post-type')
-			)
-		);
-	}
-
-	/**
-	 * creates the options page
-	 */
-	public static function plugin_options_page()
-	{
-		printf('<div class="wrap"><div class="icon32" id="icon-options-general"><br /></div><h2>%s</h2>', __('Events Options', 'event-post-type'));
-		$active_tab = isset( $_GET['tab'] ) ? $_GET['tab'] : 'ept_plugin_options';
-		if ($active_tab != "ept_help") {
-			settings_errors($active_tab);
-		}
-		if (isset($_REQUEST['settings-updated']) && $_REQUEST['settings-updated'] == "true")
-		{
-			printf('<div id="message" class="updated fadeout"><p><strong>%s.</strong></p></div>', __('Settings saved', 'event-post-type'));
-		}
-		$settings_sections = array(
-			"ept_plugin_options" => __("Plugin Options", 'event-post-type'),
-			"ept_archive_options" => __("Archive page Options", 'event-post-type'),
-			"ept_widget_options" => __("Widget/Shortcode Settings", 'event-post-type'),
-			"ept_date_options"   => __("Date Settings", 'event-post-type'),
-			"ept_help"           => __("Help", 'event-post-type')
-		);
-		print('<h2 class="nav-tab-wrapper">');
-		foreach ($settings_sections as $setting => $section)
-		{
-			$activeclass = ($active_tab == $setting)? ' nav-tab-active': '';
-			printf('<a href="%s%s" class="nav-tab%s">%s</a>', admin_url('admin.php?page=event_options&tab='), $setting, $activeclass, $section);
-		}
-		print('</h2>');
-		if ($active_tab == "ept_help") {
-			EventPostTypeHelp::getAdminHelpPage();
-		} else {
-			print('<form method="post" action="options.php">');
-			settings_fields($active_tab);
-			do_settings_sections($active_tab . '_section');
-			printf('<p class="submit"><input type="submit" class="button-primary" name="Submit" value="%s" /></p>', __('Save Changes', 'event-post-type'));
-			print('</form>');
-		}
-		print('</div>');
-	}
-
-	/**
-	 * settings section text
-	 */
-	public static function ept_section_text()
-		{ echo ""; }
-
-	/**
-	 * settings section text
-	 */
-	public static function ept_section_date()
-		{ echo "<div id=\"date_preview\"></div>"; }
-
-	/**
-	 * input for text
-	 */
-	public static function ept_setting_text($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options[$field ]) && trim($options[$field ]) != "")? trim($options[$field ]): "";
-		printf('<input id="%s" name="%s[%s]" type="text" value="%s" size="20" />', $field, $group, $field, $option_value);
-		if (isset($args["description"]) && $args["description"] != "") {
-			print("<p><em>" . $args["description"] . "</em></p>");
-		}
-	}
-
-	/**
-	 * returns the HTML for a rich text field
-	 */
-	public static function ept_setting_richtext($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options[$field ]) && trim($options[$field ]) != "")? trim($options[$field ]): "";
-        /* wordpress richtext editor ID can only contain lowercase letters! */
-        $editor_id = preg_replace( "/[^a-z]*/", "", strtolower($field) );
-        /* options for editor */
-        $options = array(
-            //"wpautop" => true,
-            "media_buttons" => false,
-            "textarea_name" => $field,
-            "textarea_rows" => 3,
-            "teeny" => true //use minimal editor configuration
-        );
-        /* echo the editor */
-        wp_editor($option_value, $editor_id, $options );
-		if (isset($args["description"]) && $args["description"] != "") {
-			print("<p><em>" . $args["description"] . "</em></p>");
-		}
-	}
-
-	
-	/**
-	 * input for date format text
-	 */
-	public static function ept_setting_dateformat($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options[$field]))? htmlentities($options[$field]): "";
-		printf('<input class="dateformat" id="%s" name="%s[%s]" type="text" value="%s" size="10" />', $field, $group, $field, $option_value);
-		if ($field == 'date_fmt' || $field == 'time_fmt') {
-			/* example date/time */
-			$ts = mktime(13,45,0,date("n"),date("j"),date("Y"));
-			/* date format examples */
-			$examples = array(
-				"date_fmt" => array("d/m/Y", "j/n/Y", "d.m.Y", "j.n.Y", "M j, Y", "M jS, Y", "F j, Y", "F jS, Y", "jS M, Y", "jS F, Y", "l jS F, Y", "D jS F, Y"),
-				"time_fmt" => array("g:ia", "g.ia", "g:iA", "g.iA", "h:ia", "h.ia", "h:iA", "h.iA", "G:i", "G.i")
-			);
-			print('<select id="ex_' . $field . '" class="format-examples"><option value="" selected="selected">Examples...</option>');
-			foreach ($examples[$field] as $ex) {
-				printf('<option value="%s">%s</option>', $ex, date($ex, $ts));
-			}
-			print('</select>');
-		}
-		if (isset($args["description"]) && $args["description"] != "") {
-			print("<p><em>" . $args["description"] . "</em></p>");
-		}
-	}
-
-	/**
-	 * input for number
-	 */
-	public static function ept_setting_number($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options[$field]) && $options[$field] != "")? intval($options[$field]): "";
-		printf('<input id="%s" name="%s[%s]" type="text" value="%s" size="2" />', $field, $group, $field, $option_value);
-		if (isset($args["description"]) && $args["description"] != "") {
-			print("<p><em>" . $args["description"] . "</em></p>");
-		}
-	}
-
-	/**
-	 * input field for format
-	 */
-	public static function ept_setting_checkbox($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$chckd = ($options[$field])? ' checked="checked"': '';
-		printf('<input id="%s" name="%s[%s]" type="checkbox"%s />', $field, $group, $field, $chckd);
-		if (isset($args["description"]) && $args["description"] != "") {
-			print("<p><em>" . $args["description"] . "</em></p>");
-		}
-	}
-
-	/**
-	 * input field for format
-	 */
-	public static function ept_setting_format($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$formats = array_keys(self::get_formats());
-		$option_value = (isset($options[$field]) && $options[$field] != "" && in_array($options[$field], $formats))? $options[$field]: $formats[0];
-		print self::get_format_select($field, $group . "[" . $field . "]", $option_value);
-	}
-
-	/**
-	 * formats allowed for output of events
-	 */
-	public static function get_formats()
-	{
-		return array(
-			"list" => __('Title and date', 'event-post-type'),
-			"short" => __('Title, date and excerpt', 'event-post-type'),
-			"featured" => __('Post thumbnail, title, date and excerpt', 'event-post-type'),
-			"full" => __('Title, date and full content', 'event-post-type')
-		);
-	}
-
-	/**
-	 * gets a select list of output formats
-	 * checks to see if a filter has been registered on "event-format"
-	 */
-	public static function get_format_select($id, $name, $selected = "list")
-	{
-		$out = "";
-		if (!has_filter("event-format")) {
-			$out .= '<ul>';
-			$suffix = "1";
-			$formats = self::get_formats();
-			foreach ($formats as $fmt => $desc) {
-				$id .= "_" . $suffix;
-				$chckd = ($fmt === $selected)? ' checked="checked"': '';
-				$out .= sprintf('<li><input type="radio" name="%s" id="%s" value="%s"%s /> %s</li>', $name, $id, $fmt, $chckd, $desc);
-				$suffix++;
-			}
-			$out .= '</ul>';
-			return $out;
-		} else {
-			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $name, $id);
-		}
-		return $out;
-	}
-	
-	/**
-	 * set size of thumbnail to use in longer listing formats
-	 * @uses get_intermediate_image_sizes()
-	 */
-	public static function ept_setting_thumbnail($args)
-	{
-		$field = $args["fieldname"];
-		$group = $args["settings-group"];
-		$options = self::get_plugin_options($group);
-		$option_value = (isset($options['thumbnail_size']) && $options['thumbnail_size'] != "")? $options['thumbnail_size']: "";
-		if (!has_filter("event-format")) {
-			$sizes = get_intermediate_image_sizes();
-			print('<select id="thumbnail_size_select" name="thumbnail_size_select">');
-			foreach ($sizes as $size) {
-				$sel = $option_value == $size? ' selected="selected"': '';
-				printf('<option value="%s"%s>%s</option>', $size, $sel, $size);
-			}
-			$sel = !in_array($option_value, $sizes)? ' selected="selected"': '';
-			$custom_value = !in_array($option_value, $sizes)? $option_value: '';
-			printf('<option value="custom"%s>Custom&hellip;</option></select><br /><input type="text" name="thumbnail_size_input" id="thumbnail_size_input" size="7" value="%s" />', $sel, $custom_value);
-		} else {
-			$option_value = "user";
-			print('(User defined)');
-		}
-		printf('<input type="hidden" id="ept_plugin_options_thumbnail_size" name="%s[thumbnail_size]" value="%s" />', $group, $option_value);
-		printf('<p id="custom_thumbnail_desc"><em>%s</em></p>', __('Custom settings consist of two numbers separated by a comma. These represent the width and height of the cropped image.', 'event-post-type'));
-	}
-
-	/**
-	 * gets all default plugin options
-	 */
-	public static function get_default_options()
-	{
-		return array(
-			'ept_plugin_options' => array(
-				'post_type_slug' => 'events',
-				'post_type_future_slug' => 'future',
-				'event_category_slug' => 'category',
-				'event_tag_slug' => 'tag',
-				'enqueue_js' => true,
-				'enqueue_css' => true
-			),
-			'ept_archive_options' => array(
-				'archive_title' => __('Events', 'event-post-type'),
-				'archive_frontpage_content' => '',
-				'archive_search' => false,
-				'archive_calendar' => false,
-				'archive_frontpage_sticky' => 1,
-				'archive_frontpage_events' => 8, 
-				'archive_perpage' => 10
-			),
-			'ept_widget_options' => array(
-				"current" => true,
-				"sticky" => true,
-				"max" => 4,
-				"format" => "list",
-				"thumbnail_size" => "thumbnail",
-		        "category" => "",
-		        "tag" => "",
-		        "start_date" => "",
-		        "end_date" => "",
-		        "class" => "",
-		        "include" => "",
-		        "exclude" => ""
-			),
-			'ept_date_options' => array(
-				"date_fmt" => "j/n/Y",
-				"time_fmt" => "g.ia",
-				"date_time_separator" => " | ",
-				"time_separator" => " &ndash; ",
-				"date_separator" => " &ndash; ",
-				"allday" => __(" (all day)", 'event-post-type'),
-				"date_label" => __("Date: ", 'event-post-type'),
-				"time_label" => __("Time: ", 'event-post-type')
-			)
-		);
-	}
-
-	/**
-	 * gets plugin options - merges saved options with defaults
-	 * @return array
-	 */
-	public static function get_plugin_options()
-	{
-
-		$defaults = self::get_default_options();
-		$all_options = array();
-		foreach ($defaults as $option => $default_settings) {
-			$saved = get_option($option);
-			$all_options[$option]  = wp_parse_args($saved, $default_settings);
-		} 
-		return $all_options;
-	}
-
-	/**
-	 * input validation callbacks
-	 */
-	public static function validate_ept_plugin_options($ept_plugin_options)
-	{
-		$defaults = self::get_default_options();
-		$ept_plugin_options['enqueue_js'] = isset($ept_plugin_options['enqueue_js']);
-		$ept_plugin_options['enqueue_css'] = isset($ept_plugin_options['enqueue_css']);
-		foreach(array('post_type_slug', 'post_type_future_slug', 'event_category_slug', 'event_tag_slug') as $opt) {
-			$ept_plugin_options[$opt] = (trim(preg_replace('/[^a-z]/', '', strtolower($ept_plugin_options[$opt]))) == '')? $defaults['ept_plugin_options'][$opt]: trim(preg_replace('/[^a-z]/', '', strtolower($ept_plugin_options[$opt])));
-		}
-		return $ept_plugin_options;
-	}
-	public static function validate_ept_archive_options($ept_archive_options)
-	{
-		$defaults = self::get_default_options();
-		$ept_archive_options['archive_search'] = isset($ept_archive_options['archive_search']);
-		$ept_archive_options['archive_calendar'] = isset($ept_archive_options['archive_calendar']);
-		foreach(array('archive_frontpage_sticky', 'archive_frontpage_events', 'archive_perpage') as $o) {
-			$ept_archive_options[$o] = (intval($ept_archive_options[$o]) < 0)? $defaults['ept_archive_options'][$o]: intval($ept_archive_options[$o]);
-		}
-		return $ept_archive_options;
-	}
-	public static function validate_ept_widget_options($ept_widget_options)
-	{
-		//print_r($ept_widget_options);exit();
-		return $ept_widget_options;
-	}
-	public static function validate_ept_date_options($ept_date_options)
-	{
-		//print_r($ept_widget_options);exit();
-		return $ept_date_options;
-	}
-
-}/* end of class definition EventPostTypeOptions */
-EventPostTypeOptions::register();
-endif;
