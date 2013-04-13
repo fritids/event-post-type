@@ -1472,6 +1472,9 @@ class EventPostType
 		$options = EventPostTypeOptions::get_plugin_options();
 		$event_categories = get_terms('event_category');
 		$out = "";
+		if (has_filter('event-search-bar')) {
+			return apply_filters('event-search-bar');
+		}
 		if (count($event_categories)) {
 			$out .= '<div class="events-search-bar">';
 			if (is_tax('event_category')) {
@@ -1487,7 +1490,9 @@ class EventPostType
 			}
 			$out .= '</div>';
 		}
-		
+		if (has_filter('event-search-bar')) {
+			return apply_filters('event-search-bar', $out);
+		}
 		return $out;
 	}
 	
@@ -2000,6 +2005,7 @@ class EventPostType
 	private static function get_formats()
 	{
 		return array(
+			'calendar' => __('Calendar', 'event-post-type'),
 			'title' => __('Title & date', 'event-post-type'),
 			'title_excerpt' => __('Title, date & excerpt', 'event-post-type'),
 			'title_excerpt_thumbnail' => __('Title, date, excerpt & thumbnail', 'event-post-type'),
@@ -2150,6 +2156,9 @@ class EventPostType
 		$event_end = get_post_meta($event_id, 'event_end', true);
 		$event_allday = (bool) get_post_meta($event_id, 'event_allday', true);
 		$date_html = "";
+		if (has_filter("event-date-format")) {
+			return apply_filters("event-date-format", array('start' => $event_start, "end" => $event_end, "allday" => $event_allday));
+		}
 		if ($event_start !== "") {
 			if ($event_allday) {
 				/* all day event - only need start date */

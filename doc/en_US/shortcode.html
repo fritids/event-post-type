@@ -1,70 +1,48 @@
-<h2>Events Shortcode</h2>
+<h2>Shortcode</h2>
 <p><strong>Shortcodes</strong> in Wordpress are used to simplify adding complex markup to pages to embed things like video, audio, scripts and image galleries. To use the events shortcode, you type the events keyword in square brackets in the content of your post/page wherever you want the events listing or calendar to appear. The shortcode can also hold additional information, or options, in a series of name/value pairs, e.g.</p>
 <p><code>[events option1=&quot;value1&quot; option2=&quot;value2&quot;]</code></p>
 <h3>Options</h3>
 <h4>format</h4>
-<p><em>optional (default &ldquo;list&quot;)</em> Can be one of the following:</p>
+<p><em>optional (default &ldquo;title&quot;)</em> Can be one of the following:</p>
 <dl>
-	<dt>list</dt>
-	<dd>Each event is listed in an unordered HTML list by the title, linked to the page for the corresponding event. If a date is included, it appears under the title (using a line break).</dd>
-	<dt>short</dt>
-	<dd>Each event is listed in an unordered HTML list by the title (in &lt;h3&gt; tags), linked to the page for the corresponding event. If a date is included, it appears in a paragraph under the title. The excerpt for the event (if available) is also included.</dd>
-	<dt>featured</dt>
-	<dd>Each event is listed in an unordered HTML list has using thumbnail (linked to the event), followed by the title (in &lt;h3&gt; tags), also linked to the event. If a date is included, it appears in a paragraph under the title. The excerpt for the event (if available) is also included.</dd>
-	<dt>long</dt>
-	<dd>This is the same output as <em>featured</em> but here the full content for the event is included (rather than the excerpt).</dd>
 	<dt>calendar</dt>
-	<dd>Produces a compact events calendar (only one of these is allowed on a page)</dd>
-	<dt>fullcalendar</dt>
-	<dd>Produces a	full-page calendar similar to a google calendar (only one of these is allowed on a page)</dd>
+	<dd>This will display a calendar on the page. You can also set a filter when you select this option to show posts only from certain categories, tagged with certain tags, or taking place between certain dates.</dd>
+	<dt>title</dt>
+	<dd>Each event is listed in an unordered HTML list by the title, linked to the URL for the corresponding event. The date appears under the title (using a line break).</dd>
+	<dt>title_excerpt</dt>
+	<dd>Each event is listed in an unordered HTML list by the title, linked to the page for the corresponding event. The date appears in a paragraph under the title, and the excerpt for the event is included under the date.</dd>
+	<dt>title_excerpt_thumbnail</dt>
+	<dd>Each event is listed in an unordered HTML list using the title and post thumbnail (featured image) which are linked to the URL for the event. This is followed by the date and the excerpt.</dd>
+	<dt>title_content</dt>
+	<dd>Each event is listed in an unordered HTML list by the title, linked to the page for the corresponding event. The date appears in a paragraph under the title, and the full content for the event is included under the date.</dd>
+	<dt>title_excerpt_thumbnail</dt>
+	<dd>Each event is listed in an unordered HTML list using the title and post thumbnail (featured image) which are linked to the URL for the event. This is followed by the date and the full content.</dd>
 </dl>
-<h4>upcoming</h4>
-<p><em>optional (default 0)</em></p>
-<p>The number of forthcoming events to display in the list. Forthcoming events are displayed in reverse date order, with the next event (or one which is currently taking place) at the top of the list.</p>
-<h4>recent</h4>
-<p><em>optional (default 0)</em></p>
-<p>The number of recent events to show in the list. Recent events are displayed in date order, with the most recent at the top of the list.</p>
-<h4>date_from</h4>
-<p><em>optional</em></p>
-<p>If this option is used, events are listed in reverse chronological order from the date given. The date must be in a format understood by the PHP <a href="http://php.net/manual/en/function.strtotime.php">strtotime</a> function.</p>
-<h4>date_to</h4>
-<p><em>optional</em></p>
-<p>If this option is used, events are listed in reverse chronological order from the date given by the <em>date_from</em> option (or the current date if this isn't used) to the date given here. The date must be in a format understood by the PHP <a href="http://php.net/manual/en/function.strtotime.php">strtotime</a> function.</p>
+<h4>preset</h4>
+<p>Use this option to display events according to one of the following presets:</p>
+<dl>
+	<dt>calendar</dt>
+	<dd>This performs the same function as the <strong>calendar</strong> format option above.</dd>
+	<dt>list_with_calendar</dt>
+	<dd>This outputs a list of events with a calendar.</dd>
+	<dt>list</dt>
+	<dd>This outputs events as a list (the default behaviour).</dd>
+</dl>
+<h4>category_filter</h4>
+<p>This will filter the events to be displayed by event category. Use event category "slugs" here separated by commas.</p>
+<h4>tag_filter</h4>
+<p>This will filter the events to be displayed by event tag. Use event tag "slugs" here separated by commas.</p>
+<h4>start</h4>
+<p>Use this to specify a start date/time for events. Only those events whose end date/time occur after this date will be included (use dates in the format <code>dd/mm/yyyy hh:mm:ss</code>).</p>
+<h4>end</h4>
+<p>Use this to specify an end date/time for events. Only those events whose start date/time occur before this date will be included (use dates in the format <code>dd/mm/yyyy hh:mm:ss</code>).</p>
 <h4>thumbnail_size</h4>
-<p><em>optional (default &quot;thumbnail&quot;)</em></p>
-<p>The size of the thumbnail used in the longer listing formats. Can either be a named image size (thumbnail, medium, post-thumbnail, large, or a custom size) or a pair of numbers, comma separated, denoting the pixel size of the thumbnail required.</p>
-<h4>max</h4>
-<p><em>optional (default 0, or all events)</em></p>
-<p>The maximum number of Events to display.</p>
-<h4>category</h4>
-<p><em>optional</em></p>
-<p>Whether to filter the list by event category. Use category IDs separated by commas.</p>
-<h4>display_dates</h4>
-<p><em>optional (default true)</em></p>
-<p>Whether or not to display dates in the list</p>
-<h4>date_fmt</h4>
-<p><em>optional (default &quot;j/n/Y&quot;)</em></p>
-Format for dates &ndash; see <a href="http://www.php.net/manual/en/function.date.php">http://www.php.net/manual/en/function.date.php</a> for details.</p>
-<p><strong>time_fmt</strong></p>
-<p><em>optional (default &quot;g.ia&quot;)</em> Format for times &ndash; see <a href="http://www.php.net/manual/en/function.date.php">http://www.php.net/manual/en/function.date.php</a> for details.</p>
-<p><strong>date_time_separator</strong></p>
-<p><em>optional (default &quot; | &quot;)</em> Separator used for date and time.</p>
-<p><strong>time_separator</strong></p>
-<p><em>optional (default &quot; &amp;mdash; &quot;)</em> Separator for times, used when an event takes place between two times on the same day.</p>
-<p><strong>date_separator</strong></p>
-<p><em>optional (default &quot; &amp;mdash; &quot;)</em> Separator for dates, when an event takes place over a number of days.</p>
-<p><strong>allday</strong></p>
-<p><em>optional (default &quot; (all day)&quot;)</em> Text to append to event dates if they take place all day.</p>
-<p><strong>date_label</strong></p>
-<p><em>optional (default &quot;Date: &quot;)</em> Label used for dates.</p>
-<p><strong>time_label</strong></p>
-<p><em>optional (default &quot;Time: &quot;)</em> Label used for times.</p>
-<h3>CSS classes used in the output</h3>
-<p>Each list has the class <code>events-listing</code>, with the recent events list having the additional <code>recent-events</code> class.</p>
-<p>Dates are wrapped in spans with the following classes:</p>
-<p><code>event-date-label</code><br />
-<code>event-time-label</code><br />
-<code>event-start-date</code><br />
-<code>event-start-time</code><br />
-<code>event-end-date</code><br />
-<code>event-end-time</code></p>
+<p>This controls the size of the thumbnail used in a list of events when the format setting includes it. It can be set to a standard Wordpress thumbnail size, a custom image size defined by <code>add_image_size()</code> in the theme, or a custom size (like <code>200x100</code> for example).</p>
+<h4>prioritise_sticky</h4>
+<p>This setting controls whether "sticky" events are prioritised (i.e. moved to the top) of an events list generated by the shortcode.</p>
+<h4>num</h4>
+<p>This setting will limit the number of events shown in the list.</p>
+<h2>Widgets</h2>
+<p>The EventPostType plugin comes with a widget which you can use in your sidebars to display a calendar, list events, or both. Each widget allows you to set different options.</p>
+<h3>Widget options</h3>
+<p>Widget options are the same as the options which can be used in the shortcode - see above fo an explanation of what these options accomplish.</p>
