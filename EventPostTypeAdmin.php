@@ -204,26 +204,26 @@ class EventPostTypeOptions
 		);
 		add_settings_field(
 			'archive_frontpage_sticky',
-			__('Number of sticky events to display on the main events archive page', 'event-post-type'),
+			__('The number of &ldquo;sticky&rdquo; events displayed on the main events archive page', 'event-post-type'),
 			array('EventPostTypeOptions', 'ept_setting_number'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
 				"settings-group" => 'ept_archive_options', 
 				"fieldname" => "archive_frontpage_sticky", 
-				"description" => __('This will limit the number of upcoming &ldquo;sticky&rdquo; events displayed on the main archive and taxonomy archive pages', 'event-post-type')
+				"description" => ''
 			)
 		);
 		add_settings_field(
 			'archive_frontpage_events', 
-			__('Number of regular events to display on the main events archive page (excluding sticky events)', 'event-post-type'), 
+			__('The number of events to display on the main events archive page (excluding sticky events)', 'event-post-type'), 
 			array('EventPostTypeOptions', 'ept_setting_number'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
 				"settings-group" => 'ept_archive_options', 
 				"fieldname" => "archive_frontpage_events", 
-				"description" => __('The number of non-sticky events to display on the main archive page. This will be made up from upcoming events (in chronological order with the nearest first).', 'event-post-type')
+				"description" => ''
 			)
 		);
 		add_settings_field(
@@ -235,9 +235,46 @@ class EventPostTypeOptions
 			array(
 				"settings-group" => 'ept_archive_options', 
 				"fieldname" => "archive_perpage", 
-				"description" => __('Number of events displayed per page in the archive', 'event-post-type')
+				"description" => ''
 			)
 		);
+		add_settings_field(
+			'archive_format', 
+			__('Format of individual events on the archive pages', 'event-post-type'), 
+			array('EventPostTypeOptions', 'ept_setting_format'), 
+			'ept_archive_options_section', 
+			'archive-options', 
+			array(
+				"settings-group" => 'ept_archive_options', 
+				"fieldname" => "archive_format", 
+				"description" => ''
+			)
+		);
+		add_settings_field(
+			'archive_thumbnail_size', 
+			__('Format of individual events on the archive pages', 'event-post-type'), 
+			array('EventPostTypeOptions', 'ept_setting_thumbnail_size'), 
+			'ept_archive_options_section', 
+			'archive-options', 
+			array(
+				"settings-group" => 'ept_archive_options', 
+				"fieldname" => "archive_thumbnail_size", 
+				"description" => ''
+			)
+		);
+		add_settings_field(
+			'archive_title_tag', 
+			__('HTML tag used for titles of individual events on the archive pages', 'event-post-type'), 
+			array('EventPostTypeOptions', 'ept_setting_title_tag'), 
+			'ept_archive_options_section', 
+			'archive-options', 
+			array(
+				"settings-group" => 'ept_archive_options', 
+				"fieldname" => "archive_title_tag", 
+				"description" => ''
+			)
+		);
+
 
 		/* date format options */
 		add_settings_section(
@@ -482,6 +519,23 @@ class EventPostTypeOptions
 	}
 
 	/**
+	 * input for number
+	 */
+	public static function ept_setting_format($args)
+	{
+		$field = $args["fieldname"];
+		$group = $args["settings-group"];
+		$options = self::get_plugin_options();
+		$option_value = (isset($options[$group][$field]) && $options[$group][$field] != "")? $options[$group][$field]: "";
+		$fieldname = $group . '[' . $field . ']';
+		$fieldid = $group . '_' . $field;
+		print(EventPostType::get_format_select($fieldid, $fieldname, $option_value));
+		if (isset($args["description"]) && $args["description"] != "") {
+			print("<p><em>" . $args["description"] . "</em></p>");
+		}
+	}
+
+	/**
 	 * input field for format
 	 */
 	public static function ept_setting_checkbox($args)
@@ -496,6 +550,39 @@ class EventPostTypeOptions
 		}
 	}
 
+	/**
+	 * input field for thumbnail size
+	 */
+	public static function ept_setting_thumbnail_size($args)
+	{
+		$field = $args["fieldname"];
+		$group = $args["settings-group"];
+		$options = self::get_plugin_options();
+		$option_value = (isset($options[$group][$field]) && $options[$group][$field] != "")? $options[$group][$field]: "";
+		$fieldname = $group . '[' . $field . ']';
+		$fieldid = $group . '_' . $field;
+		print(EventPostType::get_image_sizes_select($fieldname, $fieldid, $option_value));
+		if (isset($args["description"]) && $args["description"] != "") {
+			print("<p><em>" . $args["description"] . "</em></p>");
+		}
+	}
+
+	/**
+	 * input field for title tag
+	 */
+	public static function ept_setting_title_tag($args)
+	{
+		$field = $args["fieldname"];
+		$group = $args["settings-group"];
+		$options = self::get_plugin_options();
+		$option_value = (isset($options[$group][$field]) && $options[$group][$field] != "")? $options[$group][$field]: "";
+		$fieldname = $group . '[' . $field . ']';
+		$fieldid = $group . '_' . $field;
+		print(EventPostType::get_title_tag_select($fieldname, $fieldid, $option_value));
+		if (isset($args["description"]) && $args["description"] != "") {
+			print("<p><em>" . $args["description"] . "</em></p>");
+		}
+	}
 
 	/**
 	 * gets all default plugin options
@@ -518,7 +605,10 @@ class EventPostTypeOptions
 				'archive_calendar' => false,
 				'archive_frontpage_sticky' => 1,
 				'archive_frontpage_events' => 8, 
-				'archive_perpage' => 10
+				'archive_perpage' => 10,
+				'archive_format' => 'title_excerpt_thumbnail',
+				'archive_thumbnail_size' => 'thumbnail',
+				'archive_title_tag' => 'h3'
 			),
 			'ept_date_options' => array(
 				"date_fmt" => "j/n/Y",
@@ -577,6 +667,8 @@ class EventPostTypeOptions
 		//print_r($ept_widget_options);exit();
 		return $ept_date_options;
 	}
+
+	
 
 }/* end of class definition EventPostTypeOptions */
 EventPostTypeOptions::register();

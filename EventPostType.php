@@ -284,7 +284,7 @@ class EventPostType
 	public static function add_custom_boxes()
 	{
 		add_meta_box( 'event_settings', 'Event Settings', array('EventPostType', 'event_settings_custom_box'), 'event', 'side', 'high' );
-		add_meta_box( 'event_url', 'Event URL', array('EventPostType', 'event_url_custom_box'), 'event', 'advanced', 'high' );
+		//add_meta_box( 'event_url', 'Event URL', array('EventPostType', 'event_url_custom_box'), 'event', 'advanced', 'high' );
 	}
 
 	/**
@@ -351,6 +351,8 @@ class EventPostType
 		$checked = $event_data["event_is_sticky"]? ' checked="checked"': '';
 		printf('<p class="event_datep"><input type="checkbox" id="event_is_sticky" name="event_is_sticky"%s><label for="event_is_sticky"> %s</label>', $checked, __( 'Stick this event to the top of the archive page', 'event-post-type' ));
 		echo '<p class="event_datep"></p>';
+		$url = (isset($event_data['event_url']) && trim($event_data['event_url']) != "" && self::check_url($event_data['event_url']))? trim($event_data['event_url']): "";
+		printf('<p class="event_datep"><input id="event_url" name="event_url" type="text" value="%s" size="20" /><br /><em>%s</em></p>', esc_attr($url), __('Input a URL here if details for the event are held on another website.', 'event-post-type'));
 		echo '<script type="text/javascript"><!--' . "\n";
 		echo "var anytime_settings = {\n  'dateFormat':'%d/%m/%Y',\n  'timeFormat':'%h:%i%p'\n};";
 
@@ -482,7 +484,7 @@ class EventPostType
 	public static function add_event_columns( $posts_columns )
 	{
 		$posts_columns['title'] = __( 'Event Title', 'event-post-type' );
-		$posts_columns['event_is_sticky'] = __( 'Sticky?', 'event-post-type' );
+		$posts_columns['event_is_sticky'] = __( 'Sticky', 'event-post-type' );
 		$posts_columns['author'] = __( 'Author', 'event-post-type' );
 		$posts_columns['event_category'] = __( 'Categories', 'event-post-type' );
 		$posts_columns['event_tag'] = __( 'Tags', 'event-post-type' );
@@ -1118,12 +1120,12 @@ class EventPostType
 				 * up to the maximum of the archive_frontpage_sticky option
 				 */
 				$stickycount = 0;
+				$toremove = array();
 				if ($sticky_on_frontpage > 0) {
-					$toremove = array();
 					foreach ($events->current as $e) {
 						if ($stickycount < $sticky_on_frontpage) {
 							$events->stickies[] = $e;
-							$toremove = $e->ID;
+							$toremove[] = $e->ID;
 							$stickycount++;
 						}
 					}
@@ -1240,17 +1242,20 @@ class EventPostType
 	 * in the future or has started but not finished yet
 	 * @param object event
 	 */
-	public static function is_current($event)
+	public static function is_current($event, $now = false)
 	{
-		if ($event->meta["event_start"] > time()) {
+		if ($now === false) {
+			$now = time();
+		}
+		if ($event->meta["event_start"] > $now) {
 			/* event starts in the future */
 			return true;
-		} elseif (isset($event->meta["event_end"]) && $event->meta["event_start"] <= time() && $event->meta["event_end"] > time()) {
+		} elseif (isset($event->meta["event_end"]) && $event->meta["event_start"] <= $now && $event->meta["event_end"] > $now) {
 			/* event has started but not finished */
 			return true;
 		} elseif ($event->meta["event_allday"]) {
 			$end = mktime(0, 0, 0, date("n", $event->meta["event_start"]), (date("j", $event->meta["event_start"]) + 1), date("Y", $event->meta["event_start"]));
-			if ($event->meta["event_start"] > time() || ($event->meta["event_start"] <= time() && $end > time())) {
+			if ($event->meta["event_start"] > $now || ($event->meta["event_start"] <= $now && $end > $now)) {
 				return true;
 			}
 		}
@@ -1632,150 +1637,127 @@ class EventPostType
 	 */
 	public static function events_output($opts = array())
 	{
-		/* get plugin options and function options */
-		$options = EventPostTypeOptions::get_plugin_options();
-		$formats = array_keys(EventPostTypeOptions::get_formats());
-		$opts = shortcode_atts(array(
-			'events_category' => '',
-			'events_tag' => '',
-			'start_date' => '',
-			'end_date' => '',
-			'prioritise_sticky' => 0,
-			'container_class' => '',
-			'event_class' => '',
-			'heading' => 'h3',
-			'format' => $formats[0],
-			'events_num' => $options['ept_widget_options']["max"],
-			'size' => 'thumbnail',
-			'include' => '',
-			'exclude' => ''
-		), $opts);
-		/* clear up booleans */
-		$opts["current"] = (bool) $opts["current"];
-		$opts["sticky"] = (bool) $opts["sticky"];
+		/* get default options and merge with passed options */
+		$default_options = self::get_default_display_options();
+		$opts = shortcode_atts($default_options, $opts);
+
+		/* if a calendar has been requested, return it */
+		if ($opts["events_format"] == "calendar") {
+			if ($opts["events_start"]) {
+				return self::get_events_calendar($opts["events_start"]);
+			} else {
+				return self::get_events_calendar();
+			}
+		}
 
 		/* get events */
 		$allEvents = self::get_events();
+
+		/* bail if no events found */
 		if (!count($allEvents)) {
 			return "";
 		}
 
-		/* see if a date range has been requested */
-		$start = strtotime($opts["start_date"]);
-		$end = strtotime($opts["end_date"]);
-
-		/* if a calendar has been requested, return it */
-		if ($opts["format"] == "calendar") {
-			if ($start) {
-				return EventPostType::get_events_calendar($start);
-			} else {
-				return EventPostType::get_events_calendar();
-			}
-		}
-
-		/* store returned events in here */
-		$events = array();
-
-		/* see if a category has been requested */
-		if (!empty($opts["category"])) {
-			/* split multiple categories at the comma */
-			if (strpos($opts["category"], ",") !== false) {
-				$cat = array_map("trim", explode(",", $opts["category"]));
-			} else {
-				$cat = trim($opts["category"]);
-			}
-			foreach ($allEvents as $evt) {
-				if (has_term($cat, "event_category", $evt)) {
-					$events[$evt->ID] = $evt;
-				}
-			}
-		/* see if a tag has been requested */
-		} elseif (!empty($opts["tag"])) {
-			/* split multiple categories at the comma */
-			if (strpos($opts["tag"], ",") !== false) {
-				$tag = array_map("trim", explode(",", $opts["tag"]));
-			} else {
-				$tag = trim($opts["tag"]);
-			}
-			foreach ($allEvents as $evt) {
-				if (has_term($tag, "event_tag", $evt)) {
-					$events[$evt->ID] = $evt;
-				}
-			}
-		/* see if a time frame has been requested */
-		} elseif ($start !== false && $end !== false) {
-			foreach ($allEvents as $event) {
-				if (($event->meta["event_start"] > $start && $event->meta["event_start"] < $end) || ($event->meta["event_start"] < $start && $event->meta["event_end"] > $start)) {
-					/* event starts or ends in the target timeframe */
-					$events[$event->ID] = $event;
-				}
-			}
-		/* see if past events have been requested */
-		} elseif ($opts["current"] === false) {
-			foreach ($allEvents as $event) {
-				if ($event->meta["event_end"] < time()) {
-					/* event starts or ends in the target timeframe */
-					$events[$event->ID] = $event;
-				}
-			}
-		} else {
-			/* current events have been requested (default) */
-			foreach ($allEvents as $event) {
-				if (($event->meta["event_start"] > time()) || ($event->meta["event_start"] < time() && $event->meta["event_end"] > time())) {
-					$events[$event->ID] = $event;
-				}
-			}
-		}
-
-		/* include/exclude */
-		$include = (!empty($opts["include"]))? explode(",", $opts["include"]): array();
-		$exclude = (!empty($opts["exclude"]))? explode(",", $opts["exclude"]): array();
-		if (count($include)) {
+		/* filter by date */
+		if ($opts["events_start"]) {
+			$tmp_events = array();
 			foreach ($allEvents as $e) {
-				if (in_array($e->ID, $include) && !in_array($e->ID, $exclude)) {
-					if (!isset($events[$e->ID])) {
-						$events[$e->ID] = $e;
+				if (self::is_current($e, $opts["events_start"])) {
+					$tmp_events[] = $e;
+				}
+			}
+			$allEvents = $tmp_events;
+		}
+		if ($opts["events_end"]) {
+			$tmp_events = array();
+			foreach ($allEvents as $e) {
+				if (($e->meta["event_start"] < $opts["events_end"]) || ($e->meta["event_end"] < $opts["events_end"])) {
+					$tmp_events[] = $e;
+				}
+			}
+			$allEvents = $tmp_events;
+		}
+
+		/* filter by category / tag */
+		$tmp_events = array();
+		foreach ($allEvents as $evt) {
+			foreach(array("category", "tag") as $tax) {
+				if (isset($opts["events_" . $tax . "_filter"]) && is_array($opts["events_" . $tax . "_filter"]) && count($opts["events_" . $tax . "_filter"])) {
+					foreach ($opts["events_" . $tax . "_filter"] as $term) {
+						if (has_term($term, "event_" . $tax, $evt) && !isset($tmp_events[$evt->ID])) {
+							$tmp_events[$evt->ID] = $evt;
+						}
 					}
 				}
 			}
 		}
+		if (!count($tmp_events)) {
+			return "";
+		} else {
+			$allEvents = array_values($tmp_events);
+		}
+
+		/* exclude */
+		$exclude = (!empty($opts["exclude"]))? explode(",", $opts["exclude"]): array();
 		if (count($exclude)) {
-			$newevents = array();
-			foreach ($events as $id => $obj) {
-				if (!in_array($id, $exclude)) {
-					$newevents[$id] = $obj;
+			$tmp_events = array();
+			foreach ($allEvents as $evt) {
+				if (!in_array($evt->ID, $exclude)) {
+					$tmp_events[] = $evt;
 				}
 			}
-			$events = $newevents;
+			$allEvents = $tmp_events;
 		}
 
-		/* show only sticky events */
-		if ($sticky === true) {
-			$newevents = array();
-			foreach ($events as $id => $obj) {
-				if (self::is_sticky($obj)) {
-					$newevents[$id] = $obj;
+		/* bail if no events left */
+		if (!count($allEvents)) {
+			return "";
+		}
+
+		/* store returned events in here */
+		$current_events = array();
+		$sticky_events = array();
+		$past_events = array();
+
+		/* sort events into sets */
+		foreach ($allEvents as $evt) {
+			if (self::is_current($evt)) {
+				if ($opts["events_prioritise_sticky"] && self::is_sticky($evt)) {
+					$sticky_events[] = $evt;
+				} else {
+					$current_events[] = $evt;
+				}
+			} else {
+				$past_events[] = $evt;
+			}
+		}
+
+		/* sort the sets of events */
+		usort($past_events, array('EventPostType', 'sort_events_by_start_date_desc'));
+		usort($current_events, array('EventPostType', 'sort_events_by_start_date_asc'));
+		usort($sticky_events, array('EventPostType', 'sort_events_by_start_date_asc'));
+
+		/* now populate the resulting set */
+		$events = array();
+		while (count($events) < $opts["events_num"]) {
+			if (count($sticky_events)) {
+				$events[] = array_pop($sticky_events);
+			} else {
+				if (count($current_events)) {
+					$events[] = array_pop($current_events);
+				} else { 
+					if (count($past_events)) {
+						$events[] = array_pop($past_events);
+					} else {
+						break;
+					}
 				}
 			}
-			$events = $newevents;
 		}
 
-		/* see if we still have some to play with */
+		/* now get the output */
 		$out = "";
 		if (count($events)) {
-			/* sort events */
-			if ($opts["current"] === false) {
-				usort($events, array('EventPostType', 'sort_events_by_start_date_desc'));
-			} else {
-				usort($events, array('EventPostType', 'sort_events_by_start_date_asc'));
-			}
-			if (isset($opts['max']) && intval($opts['max']) > 0) {
-				$events = array_slice($events, 0, intval($opts['max']));
-			}
-			$cls = ($opts["current"] === false)? "past": "current";
-			if (!empty($opts["class"])) {
-				$cls .= " " . trim($opts["class"]);
-			}
 			$out .= sprintf('<ul class="events-list %s">', $cls);
 			foreach ($events as $evt) {
 				$out .= '<li>' . self::get_formatted_event($evt, $opts) . '</li>';
@@ -1788,46 +1770,58 @@ class EventPostType
 	/**
 	 * returns a single formatted event
 	 */
-	public static function get_formatted_event($evt, $opts)
+	public static function get_formatted_event($evt, $opts = array())
 	{
 		$options = EventPostTypeOptions::get_plugin_options();
+		$map = array(
+			'events_title_tag' => 'archive_title_tag',
+			'events_format' => 'archive_format',
+			'events_thumbnail_size' => 'archive_thumbnail_size'
+		);
+		foreach ($map as $opts_key => $default_key) {
+			if (isset($opts[$opts_key])) {
+				$options['ept_archive_options'][$default_key] = $opts[$opts_key];
+			}
+		}
+		$class = isset($opts["class"])? ' class="event ' . $opts["class"] . '"': ' class="event"';
 		if (has_filter("event-format")) {
 			return apply_filters("event-format", $evt, $opts, $options);
 		} else {
-
-		}
-		switch ($format) {
-			case "full":
-			case "featured":
-				/* get the thumbnail for the event */
-				$thumb = "";
-				if (has_post_thumbnail($evt->ID)) {
-   					if (!isset($options["thumbnail_size"])) {
-   						$size = 'thumbnail';
-   					} else {
-   						if (preg_match("/([0-9]+),([0-9]+)/", $options["thumbnail_size"], $matches)) {
-   							$size = array($matches[1], $matches[2]);
-   						} else {
-   							$size = $opts["thumbnail_size"];
-   						}
-   					}
-   					$thumbnail = get_the_post_thumbnail($evt->ID, $size);
-					if ($thumbnail != "") {
-   						$thumb = sprintf('<a href="%s" title="%s">%s</a>', self::get_url($evt->ID), esc_attr($evt->post_title), $thumbnail);
-	   				}
-				}
-				if ($format == "featured") {
-					return sprintf('%s<h3><a href="%s" title="%s">%s</a></h3><p class="eventdate">%s</p>%s', $thumb, self::get_url($evt->ID), esc_attr($evt->post_title), esc_attr($evt->post_title), self::get_date($evt->ID, $opts), apply_filters("the_excerpt", $evt->post_excerpt));
-				} elseif ($format == "full") {
-					return sprintf('%s<h3><a href="%s" title="%s">%s</a></h3><p class="eventdate">%s</p>%s', $thumb, self::get_url($evt->ID), esc_attr($evt->post_title), esc_attr($evt->post_title), self::get_date($evt->ID, $opts), apply_filters("the_content", $evt->post_content));
-				}
-				break;
-			case "short":
-				return sprintf('<h3><a href="%s" title="%s">%s</a></h3><p class="eventdate">%s</p>%s', self::get_url($evt->ID), esc_attr($evt->post_title), esc_attr($evt->post_title), self::get_date($evt->ID, $opts), apply_filters("the_excerpt", $evt->post_excerpt));
-				break;
-			default:
-				return sprintf('<p><a href="%s" title="%s">%s</a><br />%s</p>', self::get_url($evt->ID), esc_attr($evt->post_title), esc_attr($evt->post_title), self::get_date($evt->ID, $opts));
-				break;
+			switch ($options['ept_archive_options']['archive_format']) {
+				case 'calendar':
+					return self::get_events_calendar($opts);
+					break;
+				case 'title':
+					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>', $class, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID, $options));
+					break;
+				case 'title_excerpt':
+				case 'title_content':
+					$content = ($format == 'title_content')? apply_filters("the_content", $evt->post_content): apply_filters("the_excerpt", $evt->post_excerpt);
+					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $opts["events_title_tag"], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $opts["events_title_tag"], self::get_date($evt->ID, $opts), $content);
+					break;
+				case 'title_excerpt_thumbnail':
+				case 'title_content_thumbnail':
+					/* get the thumbnail for the event */
+					$thumb = "";
+					if (has_post_thumbnail($evt->ID)) {
+						if (!isset($options['ept_archive_options']['archive_thumbnail_size'])) {
+							$size = 'thumbnail';
+						} else {
+							if (preg_match("/([0-9]+),([0-9]+)/", $options['ept_archive_options']['archive_thumbnail_size'], $matches)) {
+								$size = array($matches[1], $matches[2]);
+							} else {
+								$size = $options['ept_archive_options']['archive_thumbnail_size'];
+							}
+						}
+						$thumbnail = get_the_post_thumbnail($evt->ID, $size);
+						if ($thumbnail != "") {
+							$thumb = sprintf('<a href="%s" title="%s">%s</a>', self::get_url($evt->ID), esc_attr($evt->post_title), $thumbnail);
+						}
+					}
+					$content = ($options['ept_archive_options']['archive_format'] == 'title_content_thumbnail')? apply_filters("the_content", $evt->post_content): apply_filters("the_excerpt", $evt->post_excerpt);
+					return sprintf('<div%s>%s<%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $thumb, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID, $options['ept_date_options']), $content);
+					break;
+			}
 		}
 	}
 
@@ -1836,19 +1830,62 @@ class EventPostType
 	 */
 	public static function events_shortcode($atts)
 	{
-		$available_attributes = array(
-			'preset',
-			'format',
-			'category_filter',
-			'tag_filter',
-			'start',
-			'end',
-			'thumbnail_size',
-			'prioritise_sticky',
-			'num'
-		);
-		
-		return self::events_output($atts);	
+		$defaults = self::get_default_display_options();
+		$options = $defaults;
+
+		/* validate format preset */
+		$presets = self::get_events_format_presets();
+		if (isset($atts['preset']) && in_array($atts['preset'], array_keys($presets))) {
+			$options['events_preset'] = $atts['preset'];
+		}
+
+		/* validate content format */
+		$content_formats = self::get_formats();
+		if (!has_filter("event-format")) {
+			if (isset($atts['format']) && in_array($atts['format'], array_keys($content_formats))) {
+				$options['events_format'] = $atts['format'];
+			}
+		} else {
+			$options['events_format'] = 'user';
+		}
+
+		/* validate category and tag filters */
+		if (isset($atts["category"])) {
+			$cats = array_map('trim', explode(",", $atts["category"]));
+			foreach ($cats as $cat) {
+				if ($cat != '') {
+					$options["events_category_filter"][] = $cat;
+				}
+			}
+		}
+		if (isset($atts["tag"])) {
+			$tags = array_map('trim', explode(",", $atts["tag"]));
+			foreach ($tags as $tag) {
+				if ($tag != '') {
+					$options["events_tag_filter"][] = $tag;
+				}
+			}
+		}
+
+		/* validate start and end time filters */
+		if (isset($atts["start"])) {
+			$options['events_start'] = strtotime($atts["start"]);
+		}
+		if (isset($atts["end"])) {
+			$options['events_end'] = strtotime($atts["end"]);
+		}
+
+		/* copy remaining values */
+		if (isset($atts['thumbnail_size'])) {
+			$options['events_thumbnail_size'] = $atts['events_thumbnail_size'];
+		}
+		if (isset($atts['prioritise_sticky'])) {
+			$options['events_prioritise_sticky'] = (bool) $atts['prioritise_sticky'];
+		}
+		if (isset($atts["num"])) {
+			$options['events_num'] = intval($atts['num']);
+		}
+		return self::events_output($options);	
 	}
 
 	/**
@@ -1857,6 +1894,7 @@ class EventPostType
 	public static function widget_form($instance, $widget)
 	{
 		printf('<h3>%s</h3>', __('Events Widget settings', 'event-post-type'));
+		$defaults = self::get_default_display_options();
 		/* event format presets */
 		$presets = self::get_events_format_presets();
 		$sel = (!isset($instance['events_preset']) || !in_array($instance['events_preset'], array_keys($presets)) || $instance['events_preset'] == "none")? ' selected="selected"': '';
@@ -1872,14 +1910,20 @@ class EventPostType
 
 		/* format of event content */
 		if (!isset($instance['events_format'])) {
-			$instance['events_format'] = false;
+			$instance['events_format'] = $defaults['events_format'];
 		}
 		printf('<div class="events-format events-list">$s</div>', self::get_format_select($widget->get_field_id('events_format'), $widget->get_field_name('events_format'), $instance['events_format'])); 
 		/* thumnbnail size */
 		if (!isset($instance['events_thumbnail_size'])) {
-			$instance['events_thumbnail_size'] = 'thumbnail';
+			$instance['events_thumbnail_size'] = $defaults['events_thumbnail_size'];
 		}
 		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_thumbnail_size'), __('Thumbnail size:', 'event-post-type'), self::get_image_sizes_select($widget->get_field_name('events_thumbnail_size'), $widget->get_field_id('events_thumbnail_size'), $instance['events_thumbnail_size']));
+		/* tag to use for titles */
+		if (!isset($instance['events_title_tag'])) {
+			$instance['events_title_tag'] = $defaults['events_title_tag'];
+		}
+		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_title_tag'), __('Tag to use for titles:', 'event-post-type'), self::get_title_tags_select($widget->get_field_name('events_title_tag'), $widget->get_field_id('events_title_tag'), $instance['events_title_tag']));
+
 
 		/* whether to prioritise sticky events */
 		$chckd = (isset($instance['events_prioritise_sticky']) && ((bool) $instance['events_prioritise_sticky'] === true))? ' checked="checked"': '';
@@ -1887,7 +1931,7 @@ class EventPostType
 
 		/* filter for events category */
 		if (!isset($instance["events_category_filter"]) || !is_array($instance["events_category_filter"])) {
-			$instance["events_category_filter"] = array();
+			$instance["events_category_filter"] = $defaults["events_category_filter"];
 		}
 		$category_filter = self::get_event_terms_select('event_category', $widget->get_field_id('events_category_filter'), $widget->get_field_name('events_category_filter'), $instance["events_category_filter"]);
 		if ($category_filter != '') {
@@ -1896,7 +1940,7 @@ class EventPostType
 
 		/* filter for events tags */
 		if (!isset($instance["events_tag_filter"]) || !is_array($instance["events_tag_filter"])) {
-			$instance["events_tag_filter"] = array();
+			$instance["events_tag_filter"] = $defaults["events_tag_filter"];
 		}
 		$tag_filter = self::get_event_terms_select('event_tag', $widget->get_field_id('events_tag_filter'), $widget->get_field_name('events_tag_filter'), $instance["events_tag_filter"]);
 		if ($tag_filter != '') {
@@ -1950,6 +1994,16 @@ class EventPostType
 		if (!has_filter("event-format")) {
 			if (in_array($new_values['events_format'], array_keys($content_formats))) {
 				$values['events_format'] = $new_values['events_format'];
+			}
+		} else {
+			$values['events_format'] = 'user';
+		}
+
+		/* validate title tag */
+		$title_tags = self::get_title_tags();
+		if (!has_filter("event-format")) {
+			if (in_array($new_values['events_title_tag'], $title_tags)) {
+				$values['events_title_tag'] = $new_values['events_title_tag'];
 			}
 		} else {
 			$values['events_format'] = 'user';
@@ -2015,6 +2069,22 @@ class EventPostType
 	}
 
 	/**
+	 * gets a set of tags to use for titles of events
+	 */
+	private static function get_title_tags()
+	{
+		return array(
+			'span',
+			'h1',
+			'h2',
+			'h3',
+			'h4',
+			'h5',
+			'h6'
+		);
+	}
+
+	/**
 	 * gets default display options for widget and shortcodes
 	 */
 	private static function get_default_display_options()
@@ -2027,7 +2097,10 @@ class EventPostType
 			'events_tag_filter' => array(),
 			'events_start' => '',
 			'events_end' => '',
+			'events_class' => '',
+			'events_exclude' => '',
 			'events_thumbnail_size' => '',
+			'events_title_tag' => 'h3',
 			'events_prioritise_sticky' => true,
 			'events_num' => ''
 		);
@@ -2054,6 +2127,31 @@ class EventPostType
 				$suffix++;
 			}
 			$out .= '</ul>';
+			return $out;
+		} else {
+			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $name, $id);
+		}
+		return $out;
+	}
+
+	/**
+	 * gets a select list of tags to use for titles of events
+	 */
+	public static function get_title_tag_select($id, $name, $selected = false)
+	{
+		$out = "";
+		if (!has_filter("event-format")) {
+			$tags = self::get_title_tags();
+			if (!$selected || !in_array($selected, $tags)) {
+				$defaults = self::get_default_display_options();
+				$selected = $defaults["events_title_tag"];
+			} 
+			$out .= sprintf('<select id="%s" name="%s">', $id, $name);
+			foreach ($tags as $tag) {
+				$sel = ($tag == $selected)? ' selected="selected"': '';
+				$out .= sprintf('<option value="%s"%s>%s</option>', $tag, $sel, $tag);
+			}
+			$out .= '</select>';
 			return $out;
 		} else {
 			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $name, $id);
@@ -2140,7 +2238,6 @@ class EventPostType
 		return $out;
 	}
 
-
 	/**
 	 * get_date
 	 * returns a text representation of a date for an event
@@ -2151,7 +2248,7 @@ class EventPostType
 			global $post;
 			$event_id = $post->ID;
 		}
-		$options = wp_parse_args($display_options, EventPostTypeOptions::get_plugin_options('ept_date_options'));
+		$options = EventPostTypeOptions::get_plugin_options();
 		$event_start = get_post_meta($event_id, 'event_start', true);
 		$event_end = get_post_meta($event_id, 'event_end', true);
 		$event_allday = (bool) get_post_meta($event_id, 'event_allday', true);
@@ -2162,8 +2259,8 @@ class EventPostType
 		if ($event_start !== "") {
 			if ($event_allday) {
 				/* all day event - only need start date */
-				$start_date = @date($options["date_fmt"], $event_start);
-				$date_html = '<span class="event-date-label">' . $options["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span><span class="event-allday">' . $options["allday"] . '</span>';
+				$start_date = @date($options['ept_date_options']["date_fmt"], $event_start);
+				$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span><span class="event-allday">' . $options['ept_date_options']["allday"] . '</span>';
 			} else {
 				/*
 				 * either:
@@ -2171,24 +2268,24 @@ class EventPostType
 				 * - an event on a single day with time bracket specified
 				 * - an event with only the start date set
 				 */
-				$start_date = @date($options["date_fmt"], $event_start);
-				$start_time = @date($options["time_fmt"], $event_start);
-				$end_date = @date($options["date_fmt"], $event_end);
-				$end_time = @date($options["time_fmt"], $event_end);
+				$start_date = @date($options['ept_date_options']["date_fmt"], $event_start);
+				$start_time = @date($options['ept_date_options']["time_fmt"], $event_start);
+				$end_date = @date($options['ept_date_options']["date_fmt"], $event_end);
+				$end_time = @date($options['ept_date_options']["time_fmt"], $event_end);
 				if (!$start_date) {
 					/* no start date set (nothing to display) */
 					$date_html = "";
 				} elseif (!$end_date) {
 					/* no end date set - output start date and time */
-					$date_html = '<span class="event-date-label">' . $options["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options["date_time_separator"];
+					$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options['ept_date_options']["date_time_separator"];
 					$date_html .= '<span class="event-time-label">' . $options["time_label"] . '</span><span class="event-start-time">' . $start_time . '</span>';
 				} elseif ($start_date == $end_date) {
 					/* start and end dates are on the same day */
-					$date_html = '<span class="event-date-label">' . $options["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options["date_time_separator"];
-					$date_html .= '<span class="event-time-label">' . $options["time_label"] . '</span><span class="event-start-time">' . $start_time . '</span>' . $options["time_separator"] . '<span class="event-end-time">' . $end_time . '</span>';
+					$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options['ept_date_options']["date_time_separator"];
+					$date_html .= '<span class="event-time-label">' . $options['ept_date_options']["time_label"] . '</span><span class="event-start-time">' . $start_time . '</span>' . $options['ept_date_options']["time_separator"] . '<span class="event-end-time">' . $end_time . '</span>';
 				} else {
 					/* start and end dates on different days */
-					$date_html = '<span class="event-date-label">' . $options["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options["date_separator"] . '<span class="event-end-date">' . $end_date . '</span>';
+					$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options['ept_date_options']["date_separator"] . '<span class="event-end-date">' . $end_date . '</span>';
 				}
 			}
 		}
