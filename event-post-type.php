@@ -59,41 +59,41 @@ class EventPostType
 	public static function register()
 	{
 		/* load the plugin options and help */
-		require(dirname(__FILE__) . '/EventPostTypeAdmin.php');
+		require_once(dirname(__FILE__) . '/event-post-type-admin.php');
 
 		/* run the upgrade routine */
-		add_action('init', array('EventPostType', 'upgrade'), 182 );
+		add_action('init', array(__CLASS__, 'upgrade'), 182 );
 
 		/* i18n */
-		add_action('plugins_loaded', array('EventPostType', 'load_text_domain'));
+		add_action('plugins_loaded', array(__CLASS__, 'load_text_domain'));
 
 		/************************************************
 		 * Custom post type and taxonomy registration   *
 		 ************************************************/
 
 		/* initialise custom taxonomies */
-		add_action( 'init', array('EventPostType', 'register_event_taxonomies'), 180 );
+		add_action( 'init', array(__CLASS__, 'register_event_taxonomies'), 180 );
 
 		/* initialise custom post type */
-		add_action( 'init', array('EventPostType', 'register_event_post_type' ), 181 );
+		add_action( 'init', array(__CLASS__, 'register_event_post_type' ), 181 );
 
 		/* add filter to update messages */
-		add_filter( 'post_updated_messages', array('EventPostType', 'updated_messages') );
+		add_filter( 'post_updated_messages', array(__CLASS__, 'updated_messages') );
 
 		/* Use the admin_menu action to define custom editing boxes */
-		add_action( 'admin_menu', array('EventPostType', 'add_custom_boxes') );
+		add_action( 'admin_menu', array(__CLASS__, 'add_custom_boxes') );
 
 		/* Use the quick_edit_custom_box action to add the sticky checkbox to the quick edit form */
-		add_action('quick_edit_custom_box', array('EventPostType', 'add_sticky_to_quickedit'), 10, 2);
+		add_action('quick_edit_custom_box', array(__CLASS__, 'add_sticky_to_quickedit'), 10, 2);
 
 		/* Use the save_post action to do something with the data entered */
-		add_action( 'save_post', array('EventPostType', 'save_postdata') );
+		add_action( 'save_post', array(__CLASS__, 'save_postdata') );
 
 		/* initialise custom rewrites for events */
-		add_action( 'init', array('EventPostType', 'add_rewrite_rules') );
+		add_action( 'init', array(__CLASS__, 'add_rewrite_rules') );
 
 		/* adds eventsJSON javascript variable to  head */		
-		add_action('wp_head', array('EventPostType','add_json_feed_url'));
+		add_action('wp_head', array(__CLASS__,'add_json_feed_url'));
 
 
 
@@ -102,21 +102,21 @@ class EventPostType
 		 ************************************************/
 
 		/* put columns on events list table and make sortable by date and filterable by category */
-		add_action( 'manage_edit-event_columns', array('EventPostType', 'add_event_columns') );
-		add_action( 'manage_event_posts_custom_column', array('EventPostType', 'show_event_columns'), 10, 2 );
-		add_filter( 'manage_edit-event_sortable_columns', array('EventPostType', 'date_column_register_sortable') );
-		add_filter( 'request', array('EventPostType', 'date_column_orderby') );
-		add_filter( 'parse_query', array('EventPostType', 'sort_events_by_event_date')) ;
+		add_action( 'manage_edit-event_columns', array(__CLASS__, 'add_event_columns') );
+		add_action( 'manage_event_posts_custom_column', array(__CLASS__, 'show_event_columns'), 10, 2 );
+		add_filter( 'manage_edit-event_sortable_columns', array(__CLASS__, 'date_column_register_sortable') );
+		add_filter( 'request', array(__CLASS__, 'date_column_orderby') );
+		add_filter( 'parse_query', array(__CLASS__, 'sort_events_by_event_date')) ;
 
 
 		/* Use the admin_print_scripts action to add scripts for theme options */
-		add_action( 'admin_print_scripts', array('EventPostType', 'plugin_admin_scripts') );
+		add_action( 'admin_print_scripts', array(__CLASS__, 'plugin_admin_scripts') );
 		/* Use the admin_print_styles action to add CSS for theme options */
- 		add_action( 'admin_print_styles', array('EventPostType', 'plugin_admin_styles') );
+ 		add_action( 'admin_print_styles', array(__CLASS__, 'plugin_admin_styles') );
 
 		/* add counts to the Right Now widget on the dashboard */
-		add_action( 'right_now_content_table_end', array('EventPostType', 'add_event_counts') );
-		//add_action( 'right_now_discussion_table_end', array('EventPostType', 'add_pending_event_counts') );
+		add_action( 'right_now_content_table_end', array(__CLASS__, 'add_event_counts') );
+		//add_action( 'right_now_discussion_table_end', array(__CLASS__, 'add_pending_event_counts') );
 
 
 
@@ -125,22 +125,22 @@ class EventPostType
 		 ************************************************/
 
 		/* add filters for templates */
-		add_filter('single_template', array('EventPostType', 'single_template'));
-		add_filter('archive_template', array('EventPostType', 'archive_template'));
+		add_filter('single_template', array(__CLASS__, 'single_template'));
+		add_filter('archive_template', array(__CLASS__, 'archive_template'));
 
 		/* add classes */
-		add_filter( 'body_class', array('EventPostType', 'add_body_class') );
-		add_filter( 'post_class', array('EventPostType', 'add_post_class') );
+		add_filter( 'body_class', array(__CLASS__, 'add_body_class') );
+		add_filter( 'post_class', array(__CLASS__, 'add_post_class') );
 
 		/* add scripts and styles for front-end */
-		add_action( 'wp_enqueue_scripts', array('EventPostType', 'plugin_scripts') );
- 		add_action( 'wp_enqueue_scripts', array('EventPostType', 'plugin_styles') );
+		add_action( 'wp_enqueue_scripts', array(__CLASS__, 'plugin_scripts') );
+ 		add_action( 'wp_enqueue_scripts', array(__CLASS__, 'plugin_styles') );
 
  		/* handle paging */
-		add_filter( 'pre_get_posts', array('EventPostType', 'override_wp_paging') );
+		add_filter( 'pre_get_posts', array(__CLASS__, 'override_wp_paging') );
 
 		/* add shortcode */
-		add_shortcode( 'events', array('EventPostType', 'events_shortcode') );
+		add_shortcode( 'events', array(__CLASS__, 'events_shortcode') );
 		
 	}
 
@@ -163,7 +163,7 @@ class EventPostType
 	public static function register_event_post_type()
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 
 		if ( function_exists("register_post_type")) :
 			$labels = array(
@@ -225,7 +225,7 @@ class EventPostType
 	public static function register_event_taxonomies() 
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 	
 		/* Add new hierarchical taxonomy (like categories) */
 		$category_labels = array(
@@ -283,8 +283,8 @@ class EventPostType
 	 */
 	public static function add_custom_boxes()
 	{
-		add_meta_box( 'event_settings', 'Event Settings', array('EventPostType', 'event_settings_custom_box'), 'event', 'side', 'high' );
-		//add_meta_box( 'event_url', 'Event URL', array('EventPostType', 'event_url_custom_box'), 'event', 'advanced', 'high' );
+		add_meta_box( 'event_settings', 'Event Settings', array(__CLASS__, 'event_settings_custom_box'), 'event', 'side', 'high' );
+		//add_meta_box( 'event_url', 'Event URL', array(__CLASS__, 'event_url_custom_box'), 'event', 'advanced', 'high' );
 	}
 
 	/**
@@ -441,7 +441,7 @@ class EventPostType
 	public static function add_rewrite_rules()
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 
 		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/([0-9]{4})/?$', 'index.php?post_type=event&event_year=$matches[1]', 'top');
 		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_year=$matches[1]&event_month=$matches[2]', 'top');
@@ -464,7 +464,7 @@ class EventPostType
 	public static function add_json_feed_url()
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		/* only do this for the front-end */
 		if (!is_admin()) {
 			printf('<script type="text/javascript">var eventsJSON="%s/%s/json";</script>', get_bloginfo("url"), $options['ept_plugin_options']['post_type_slug']);
@@ -900,7 +900,7 @@ class EventPostType
 	 */
 	public static function plugin_scripts()
 	{
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		if ($options['ept_plugin_options']['enqueue_js']) {
 			wp_enqueue_script('EventPostTypeScript', plugins_url('/js/EventPostType.js', __FILE__), array('jquery'));
 		}
@@ -911,7 +911,7 @@ class EventPostType
 	 */
 	public static function plugin_styles()
 	{
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		if ($options['ept_plugin_options']['enqueue_css']) {
 			wp_enqueue_style('EventPostTypeStyle', plugins_url('/css/EventPostType.css', __FILE__));
 		}
@@ -952,7 +952,7 @@ class EventPostType
 			/* paging links for the query */
 			"paging" => array("current" => "", "newer" => "", "older" => "", "future" => false, "html" => ""),
 			/* plugin options */
-			"options" => EventPostTypeOptions::get_plugin_options(),
+			"options" => EventPostTypeAdmin::get_plugin_options(),
 			/* store current events */
 			"current" => array(),
 			/* store past events */
@@ -1045,8 +1045,8 @@ class EventPostType
 
 
 		/* sort events within each container */
-		usort($events->current, array('EventPostType', 'sort_events_by_start_date_asc'));
-		usort($events->past, array('EventPostType', 'sort_events_by_start_date_desc'));
+		usort($events->current, array(__CLASS__, 'sort_events_by_start_date_asc'));
+		usort($events->past, array(__CLASS__, 'sort_events_by_start_date_desc'));
 
 		/**
 		 * alter posts member variable to contain the events requested
@@ -1474,7 +1474,7 @@ class EventPostType
 	public static function get_search_bar()
 	{
 		global $wp_query;
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		$event_categories = get_terms('event_category');
 		$out = "";
 		if (has_filter('event-search-bar')) {
@@ -1507,7 +1507,7 @@ class EventPostType
 	public static function get_full_events_calendar($opts)
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		
 		$out = "<div id=\"events-calendar\"></div>\n";
 		$out .= "<script type=\"text/javascript\">\n";
@@ -1532,7 +1532,7 @@ class EventPostType
 	public static function get_events_calendar($start = false)
 	{
 		/* get plugin options */
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 
 		$days = array("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday");
 		$allEvents = self::get_events();
@@ -1733,9 +1733,9 @@ class EventPostType
 		}
 
 		/* sort the sets of events */
-		usort($past_events, array('EventPostType', 'sort_events_by_start_date_desc'));
-		usort($current_events, array('EventPostType', 'sort_events_by_start_date_asc'));
-		usort($sticky_events, array('EventPostType', 'sort_events_by_start_date_asc'));
+		usort($past_events, array(__CLASS__, 'sort_events_by_start_date_desc'));
+		usort($current_events, array(__CLASS__, 'sort_events_by_start_date_asc'));
+		usort($sticky_events, array(__CLASS__, 'sort_events_by_start_date_asc'));
 
 		/* now populate the resulting set */
 		$events = array();
@@ -1772,7 +1772,7 @@ class EventPostType
 	 */
 	public static function get_formatted_event($evt, $opts = array())
 	{
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		$map = array(
 			'events_title_tag' => 'archive_title_tag',
 			'events_format' => 'archive_format',
@@ -2248,7 +2248,7 @@ class EventPostType
 			global $post;
 			$event_id = $post->ID;
 		}
-		$options = EventPostTypeOptions::get_plugin_options();
+		$options = EventPostTypeAdmin::get_plugin_options();
 		$event_start = get_post_meta($event_id, 'event_start', true);
 		$event_end = get_post_meta($event_id, 'event_end', true);
 		$event_allday = (bool) get_post_meta($event_id, 'event_allday', true);

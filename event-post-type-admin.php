@@ -27,7 +27,7 @@
 /************************************************************
  * PLUGIN OPTIONS ADMINISTRATION							*
  ************************************************************/
-if ( ! class_exists('EventPostTypeOptions')) :
+if ( ! class_exists('EventPostTypeAdmin')) :
 /**
  * Class to add options for the Event post type
  * @author Peter Edwards <bjorsq@gmail.com>
@@ -35,7 +35,7 @@ if ( ! class_exists('EventPostTypeOptions')) :
  * @package WordPress
  * @subpackage EventPostType_Plugin
  */
-class EventPostTypeOptions
+class EventPostTypeAdmin
 {
 
 	/**
@@ -44,9 +44,9 @@ class EventPostTypeOptions
 	public static function register()
 	{
 		/* add a menu item to the Events Post type menu */
-		add_action( 'admin_menu', array('EventPostTypeOptions', 'add_plugin_admin_menu') );
+		add_action( 'admin_menu', array(__CLASS__, 'add_plugin_admin_menu') );
 		/* register plugin admin options */
-		add_action( 'admin_init', array('EventPostTypeOptions', 'register_plugin_options') );
+		add_action( 'admin_init', array(__CLASS__, 'register_plugin_options') );
 	}
 
 	/**
@@ -55,7 +55,7 @@ class EventPostTypeOptions
 	public static function add_plugin_admin_menu()
 	{
 		/* Plugin Options page */
-		$options_page = add_submenu_page("edit.php?post_type=event", "Events Options", "Events Options", "manage_options", "event_options", array('EventPostTypeOptions', "plugin_options_page") );
+		$options_page = add_submenu_page("edit.php?post_type=event", "Events Options", "Events Options", "manage_options", "event_options", array(__CLASS__, "plugin_options_page") );
 	}
 
 	/**
@@ -63,21 +63,21 @@ class EventPostTypeOptions
 	 */
 	function register_plugin_options()
 	{
-		register_setting('ept_plugin_options', 'ept_plugin_options', array('EventPostTypeOptions', 'validate_ept_plugin_options'));
-		register_setting('ept_archive_options', 'ept_archive_options', array('EventPostTypeOptions', 'validate_ept_archive_options'));
-		register_setting('ept_date_options', 'ept_date_options', array('EventPostTypeOptions', 'validate_ept_date_options'));
+		register_setting('ept_plugin_options', 'ept_plugin_options', array(__CLASS__, 'validate_ept_plugin_options'));
+		register_setting('ept_archive_options', 'ept_archive_options', array(__CLASS__, 'validate_ept_archive_options'));
+		register_setting('ept_date_options', 'ept_date_options', array(__CLASS__, 'validate_ept_date_options'));
 				
 		/* main plugin options */
 		add_settings_section(
 			'main-options',
 			__('Main Plugin Options', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_section_text'),
+			array(__CLASS__, 'ept_section_text'),
 			'ept_plugin_options_section'
 		);
 		add_settings_field(
 			'post_type_slug',
 			__('Post type slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
+			array(__CLASS__, 'ept_setting_text'),
 			'ept_plugin_options_section',
 			'main-options',
 			array(
@@ -89,7 +89,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'post_type_future_slug',
 			__('Future events slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
+			array(__CLASS__, 'ept_setting_text'),
 			'ept_plugin_options_section',
 			'main-options',
 			array(
@@ -101,7 +101,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'event_category_slug',
 			__('Event Category slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
+			array(__CLASS__, 'ept_setting_text'),
 			'ept_plugin_options_section',
 			'main-options',
 			array(
@@ -113,7 +113,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'event_tag_slug',
 			__('Event Tag slug', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
+			array(__CLASS__, 'ept_setting_text'),
 			'ept_plugin_options_section',
 			'main-options',
 			array(
@@ -125,7 +125,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'enqueue_js',
 			_x('Enqueue Javascript', 'Whether to enqueue script from the plugin or from the theme', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
+			array(__CLASS__, 'ept_setting_checkbox'),
 			'ept_plugin_options_section', 
 			'main-options', 
 			array(
@@ -137,7 +137,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'enqueue_css', 
 			_x('Enqueue CSS', 'Whether to enqueue CSS from the plugin or from the theme', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
+			array(__CLASS__, 'ept_setting_checkbox'),
 			'ept_plugin_options_section', 
 			'main-options',
 			array(
@@ -151,13 +151,13 @@ class EventPostTypeOptions
 		add_settings_section(
 			'archive-options',
 			__('Events Archive Options', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_section_text'),
+			array(__CLASS__, 'ept_section_text'),
 			'ept_archive_options_section'
 		);
 		add_settings_field(
 			'archive_title',
 			__('Archive page title', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_text'),
+			array(__CLASS__, 'ept_setting_text'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
@@ -169,7 +169,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_frontpage_content',
 			__('Archive page content', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_richtext'),
+			array(__CLASS__, 'ept_setting_richtext'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
@@ -181,7 +181,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_search',
 			__('Display Search bar?', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
+			array(__CLASS__, 'ept_setting_checkbox'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
@@ -193,7 +193,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_calendar',
 			__('Display calendar?', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_checkbox'),
+			array(__CLASS__, 'ept_setting_checkbox'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
@@ -205,7 +205,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_frontpage_sticky',
 			__('The number of &ldquo;sticky&rdquo; events displayed on the main events archive page', 'event-post-type'),
-			array('EventPostTypeOptions', 'ept_setting_number'),
+			array(__CLASS__, 'ept_setting_number'),
 			'ept_archive_options_section',
 			'archive-options',
 			array(
@@ -217,7 +217,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_frontpage_events', 
 			__('The number of events to display on the main events archive page (excluding sticky events)', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_number'), 
+			array(__CLASS__, 'ept_setting_number'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
@@ -229,7 +229,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_perpage', 
 			__('Number of events to display per page', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_number'), 
+			array(__CLASS__, 'ept_setting_number'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
@@ -241,7 +241,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_format', 
 			__('Format of individual events on the archive pages', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_format'), 
+			array(__CLASS__, 'ept_setting_format'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
@@ -253,7 +253,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_thumbnail_size', 
 			__('Format of individual events on the archive pages', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_thumbnail_size'), 
+			array(__CLASS__, 'ept_setting_thumbnail_size'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
@@ -265,7 +265,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'archive_title_tag', 
 			__('HTML tag used for titles of individual events on the archive pages', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_title_tag'), 
+			array(__CLASS__, 'ept_setting_title_tag'), 
 			'ept_archive_options_section', 
 			'archive-options', 
 			array(
@@ -280,13 +280,13 @@ class EventPostTypeOptions
 		add_settings_section(
 			'date-options', 
 			__('Date Display Options', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_section_date'), 
+			array(__CLASS__, 'ept_section_date'), 
 			'ept_date_options_section'
 		);
 		add_settings_field(
 			'date_fmt', 
 			__('Date format', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -298,7 +298,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'time_fmt', 
 			__('Time format', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -310,7 +310,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'date_label', 
 			__('Date label', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -322,7 +322,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'time_label', 
 			__('Time label', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -334,7 +334,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'date_time_separator', 
 			__('Date/Time separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -346,7 +346,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'date_separator', 
 			__('Date separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -358,7 +358,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'time_separator',
 			__('Time separator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
@@ -370,7 +370,7 @@ class EventPostTypeOptions
 		add_settings_field(
 			'allday', 
 			__('All day event indicator', 'event-post-type'), 
-			array('EventPostTypeOptions', 'ept_setting_dateformat'), 
+			array(__CLASS__, 'ept_setting_dateformat'), 
 			'ept_date_options_section', 
 			'date-options', 
 			array(
