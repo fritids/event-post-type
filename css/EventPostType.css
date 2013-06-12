@@ -6,10 +6,11 @@
  */
 #eventsCalendar {
   position: relative;
+  float: right;
+  width: 240px;
 }
 #eventsCalendar table.eventsCalendar {
-  border: none;
-  border-top: 1px solid #cccccc;
+  border: 1px solid #cccccc;
   width: 100%;
   background: #ffffff;
   border-collapse: separate;
@@ -71,28 +72,13 @@
 }
 .ec-container {
   position: relative;
-  background-color: #e0e0e0;
-  background-image: -moz-linear-gradient(top, #cccccc, #ffffff);
-  background-image: -ms-linear-gradient(top, #cccccc, #ffffff);
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#cccccc), to(#ffffff));
-  background-image: -webkit-linear-gradient(top, #cccccc, #ffffff);
-  background-image: -o-linear-gradient(top, #cccccc, #ffffff);
-  background-image: linear-gradient(top, #cccccc, #ffffff);
-  background-repeat: repeat-x;
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#cccccc', endColorstr='#ffffff', GradientType=0);
-  border: 1px solid #ccc;
-  -webkit-border-top-left-radius: 2px;
-  -webkit-border-top-right-radius: 2px;
-  -moz-border-radius-topleft: 2px;
-  -moz-border-radius-topright: 2px;
-  border-top-left-radius: 2px;
-  border-top-right-radius: 2px;
   font-size: 12px;
   line-height: 12px;
   font-family: arial, sans-serif;
   padding-top: 4px;
   max-width: 240px;
   line-height: 1.2em;
+  background: #eeeeee;
 }
 .ec-container h4 {
   font-size: 12px;
@@ -101,13 +87,13 @@
   padding: 0;
 }
 .ec-container a {
-  color: #000;
+  color: #000000;
   text-decoration: none;
   padding: 3px 2px 0;
 }
 .ec-container a.disabled {
   cursor: default;
-  color: #aaa;
+  color: #bbbbbb;
 }
 .ec-container .ec-nav {
   display: none;
@@ -207,4 +193,70 @@
   position: absolute;
   width: 0;
   height: 0;
+}
+.events-search-bar {
+  width: 100%;
+  background: #eeeeee;
+}
+.events-search-bar .current-term {
+  font-weight: bold;
+}
+.events-search-bar .event-filter {
+  position: relative;
+  background: #eeeeee;
+  padding: .5em 1%;
+  width: 35%;
+  float: left;
+}
+.events-search-bar .event-filter p {
+  margin: 0;
+}
+.events-search-bar .event-filtered {
+  position: relative;
+  background: #eeeeee;
+  padding: .5em 1%;
+  width: 70%;
+  float: left;
+}
+.events-search-bar .event-filtered p {
+  margin: 0;
+}
+.events-search-bar .event-search {
+  background: #eeeeee;
+  float: right;
+  width: 20%;
+}
+.events-search-bar .event-search input {
+  margin-top: .5em;
+}
+.events-search-bar .event-search input.searchinput {
+  float: left;
+  width: 70%;
+}
+.events-search-bar .event-search input.searchsubmit {
+  float: right;
+  width: 25%;
+}
+.js .events-search-bar .event-taxonomy-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  background: #ffffff;
+  background: rgba(255, 255, 255, 0.9);
+  position: absolute;
+  border-left: 1px solid #eeeeee;
+  border-right: 1px solid #eeeeee;
+  border-bottom: 1px solid #eeeeee;
+  top: 2.5em;
+  z-index: 1000;
+  left: 0;
+  display: none;
+}
+.js .events-search-bar .event-taxonomy-list a {
+  display: block;
+  padding: 3px 6px;
+}
+.js .events-search-bar .event-taxonomy-list a:hover {
+  background: #eeeeee;
 }

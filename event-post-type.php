@@ -127,6 +127,7 @@ class EventPostType
 		/* add filters for templates */
 		add_filter('single_template', array(__CLASS__, 'single_template'));
 		add_filter('archive_template', array(__CLASS__, 'archive_template'));
+		add_filter('taxonomy_template', array(__CLASS__, 'taxonomy_template'));
 
 		/* add classes */
 		add_filter( 'body_class', array(__CLASS__, 'add_body_class') );
@@ -843,6 +844,42 @@ class EventPostType
 		return $archive;
 	}
 
+	/**
+	 * gets the path for a template to be used for the events taxonomy archive
+	 * first looks for the corresponding templates in the theme/parent theme
+	 * used by the archive_template filter
+	 * @param string archive template path passed by Wordpress
+	 * @return string archive template path (possibly altered)
+	 */
+	public static function taxonomy_template($archive)
+	{
+		if (is_tax('event_category')) {
+			$theme_path = get_stylesheet_directory() . '/category-event.php';
+			$template_path = get_template_directory() . '/category-event.php';
+			$plugin_path = dirname(__FILE__) . '/category-event.php';
+			if (file_exists($theme_path)) {
+				return $theme_path;
+			} elseif (file_exists($template_path)) {
+				return $template_path;
+			} elseif (file_exists($plugin_path)) {
+				return $plugin_path;
+			}
+		}
+		if (is_tax('event_tag')) {
+			$theme_path = get_stylesheet_directory() . '/tag-event.php';
+			$template_path = get_template_directory() . '/tag-event.php';
+			$plugin_path = dirname(__FILE__) . '/tag-event.php';
+			if (file_exists($theme_path)) {
+				return $theme_path;
+			} elseif (file_exists($template_path)) {
+				return $template_path;
+			} elseif (file_exists($plugin_path)) {
+				return $plugin_path;
+			}
+		}
+		return $archive;
+	}
+
    	/**
 	 * adds a class to the body of the page - used in the body_class filter
 	 * @param array of classes passed by Wordpress
@@ -922,7 +959,7 @@ class EventPostType
 	 * sets this to 1 to prevent wordpress 404 pages
 	 * @param object wp_query object
 	 */
-	function override_wp_paging($query)
+	public static function override_wp_paging($query)
 	{
     	if (!is_admin() && self::is_event()) {
        		$query->query_vars['posts_per_page'] = 1;
@@ -1322,8 +1359,8 @@ class EventPostType
 		);
 		$allTaxEvents = get_posts($args);
 		/* add custom meta */
-		for ($i = 0; $i < count($allEvents); $i++) {
-	 		$allTaxEvents[$i]->meta = self::get_event_meta($allEvents[$i]->ID);
+		for ($i = 0; $i < count($allTaxEvents); $i++) {
+	 		$allTaxEvents[$i]->meta = self::get_event_meta($allTaxEvents[$i]->ID);
 		}
 		return $allTaxEvents;
 	}
@@ -1476,25 +1513,47 @@ class EventPostType
 		global $wp_query;
 		$options = EventPostTypeAdmin::get_plugin_options();
 		$event_categories = get_terms('event_category');
-		$out = "";
-		if (has_filter('event-search-bar')) {
-			return apply_filters('event-search-bar');
-		}
+		$event_tags = get_terms('event_tag');
+		$out = '<div class="events-search-bar">';
 		if (count($event_categories)) {
-			$out .= '<div class="events-search-bar">';
 			if (is_tax('event_category')) {
 				/* already filtering */
 				$term = get_term_by( 'slug', $wp_query->query_vars["term"], "event_category");
-				$out .= sprintf('<div class="event-category-filter"><p>%s <strong class="current-term filter-trigger">%s</strong> <a class="remove-filter" href="%s/%s">remove filter</a></p>', __('Filtering events by category', 'event-post-type'), $term->name, get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"]);
+				$out .= sprintf('<div class="event-filtered"><p>%s <span class="current-term">%s</span> <a class="remove-filter" href="%s/%s">%s</a></p></div>', __('Filtering events by category', 'event-post-type'), $term->name, get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], __('remove filter', 'event-post-type'));
 			} else {
-				$out .= sprintf('<div class="event-category-filter"><p class="filter-trigger">Filter events by category</p>', __('Filter events by category', 'event-post-type'));
+				if (!is_tax('event_tag')) {
+					$out .= sprintf('<div class="event-filter"><p>%s <a class="add-filter" href="#">%s</a></p>', __('Filter events by category', 'event-post-type'), __('add filter', 'event-post-type'));
+					$out .= '<ul class="event-taxonomy-list">';
+					foreach($event_categories as $term) {
+						$sel = is_tax('event_category', $term->slug)? ' class="active"': '';
+						$out .= sprintf('<li><a href="%s/%s/%s/%s"%s>%s</a></li>', get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], $options['ept_plugin_options']['event_category_slug'], $term->slug, $sel, $term->name);
+					}
+					$out .= '</ul>';
+					$out .= '</div>';
+				}
 			}
-			$out .= '<div class="event-category-list"><ul>';
-			foreach($event_categories as $term) {
-				$out .= sprintf('<li><a href="%s/%s/%s/%s">%s</a></li>', get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], $options['ept_plugin_options']['event_category_slug'], $term->slug, $term->name);
-			}
-			$out .= '</div>';
 		}
+		if (count($event_tags)) {
+			if (is_tax('event_tag')) {
+				/* already filtering */
+				$term = get_term_by( 'slug', $wp_query->query_vars["term"], "event_tag");
+				$out .= sprintf('<div class="event-filtered"><p>%s <span class="current-term">%s</span> <a class="remove-filter" href="%s/%s">%s</a></p></div>', __('Filtering events by tag', 'event-post-type'), $term->name, get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], __('remove filter', 'event-post-type'));
+			} else {
+				if (!is_tax('event_category')) {
+					$out .= sprintf('<div class="event-filter"><p>%s <a class="add-filter" href="#">%s</a></p>', __('Filter events by tag', 'event-post-type'), __('add filter', 'event-post-type'));
+					$out .= '<ul class="event-taxonomy-list">';
+					foreach($event_tags as $term) {
+						$sel = is_tax('event_tag', $term->slug)? ' class="active"': '';
+						$out .= sprintf('<li><a href="%s/%s/%s/%s"%s>%s</a></li>', get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], $options['ept_plugin_options']['event_tag_slug'], $term->slug, $sel, $term->name);
+					}
+					$out .= '</ul>';
+					$out .= '</div>';
+				}
+			}
+
+		}
+		$out .= sprintf('<div class="event-search"><form action="" method="post"><input type="text" name="eventsearch" placeholder="%s" class="searchinput" /><input type="submit" value="go" class="searchsubmit" /></form></div>', __("Search events", "event-post-type"));
+		$out .= '<br style="clear:both" /></div>';
 		if (has_filter('event-search-bar')) {
 			return apply_filters('event-search-bar', $out);
 		}
@@ -2278,7 +2337,7 @@ class EventPostType
 				} elseif (!$end_date) {
 					/* no end date set - output start date and time */
 					$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options['ept_date_options']["date_time_separator"];
-					$date_html .= '<span class="event-time-label">' . $options["time_label"] . '</span><span class="event-start-time">' . $start_time . '</span>';
+					$date_html .= '<span class="event-time-label">' . $options['ept_date_options']["time_label"] . '</span><span class="event-start-time">' . $start_time . '</span>';
 				} elseif ($start_date == $end_date) {
 					/* start and end dates are on the same day */
 					$date_html = '<span class="event-date-label">' . $options['ept_date_options']["date_label"] . '</span><span class="event-start-date">' . $start_date . '</span>' . $options['ept_date_options']["date_time_separator"];

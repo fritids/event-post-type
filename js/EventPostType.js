@@ -300,5 +300,18 @@ jQuery(function($){
 		});
 		return false;
 	};
+	if ($('.add-filter').length) {
+		$('.add-filter').on('click', function(e) {
+			var list = $(this).parent().next('.event-taxonomy-list');
+			if ($(list).is(':visible')) {
+				$(this).removeClass("expanded");
+				$(list).slideUp();
+			} else {
+				$(this).addClass("expanded");
+				$(list).slideDown();
+			}
+			return false;
+		});
+	}
 });
 

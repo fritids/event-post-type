@@ -29,7 +29,6 @@ if (count($events->posts) || count($events->stickies)):
 	    	print(EventPostType::get_formatted_event($post));
 		endforeach;
 	endif;
-	echo $events->paging["html"];
 
 else : ?>
 

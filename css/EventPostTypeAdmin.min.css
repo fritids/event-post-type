@@ -1,6 +1,1 @@
-/*!
- * CSS for the Admin area of the EventPostType Wordpress Plugin
- * @author Peter Edwards <bjorsq@gmail.com>
- * @version 1.2
- * @package EventPostType_Plugin
- */input.datepicker{width:60%;float:left;background-image:url("../img/calendar.png")}input.timepicker{width:35%;float:right;background-image:url("../img/clock.png")}input.timepicker,input.datepicker{background-position:right center;background-repeat:no-repeat}#event_dates_duration_minutes{float:right}.event_datep{padding-top:3px;clear:both}span.event-date{font-weight:bold}th#event_is_sticky{width:5%}th#event_category,th#event_tag,th#event_date{width:15%}#ept-help-tabs{margin-top:1em}#date_preview .datelabel{width:20%;float:left}#date_preview .datepreview{background:#fff;font-weight:bold;font-size:1.3em;line-height:1.5em;float:left;width:70%}#date_preview p{clear:both}
+lessc: ENOENT, open 'D:\www.pvac.leeds.ac.uk\wp-content\plugins\event-post-type\css\EventPostTypeAdmin.less'

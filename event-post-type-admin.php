@@ -61,7 +61,7 @@ class EventPostTypeAdmin
 	/**
 	 * registers settings and sections
 	 */
-	function register_plugin_options()
+	public static function register_plugin_options()
 	{
 		register_setting('ept_plugin_options', 'ept_plugin_options', array(__CLASS__, 'validate_ept_plugin_options'));
 		register_setting('ept_archive_options', 'ept_archive_options', array(__CLASS__, 'validate_ept_archive_options'));
@@ -671,7 +671,7 @@ class EventPostTypeAdmin
 	
 
 }/* end of class definition EventPostTypeOptions */
-EventPostTypeOptions::register();
+EventPostTypeAdmin::register();
 endif;
 
 if (!class_exists('EventPosttypeHelp' )) :

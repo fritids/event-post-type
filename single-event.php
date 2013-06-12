@@ -13,11 +13,8 @@ get_header();
 
 if ( have_posts() ) while ( have_posts() ) : the_post(); ?>
 
-		<div id="primary">
-			<div id="content" role="main">
-
 				<div id="post-<?php the_ID(); ?>" <?php post_class(); ?>>
-					<h1 class="entry-title"><?php the_title(); ?></h1>
+					<h2 class="entry-title"><?php the_title(); ?></h2>
 
 					<div class="entry-meta">
 						<?php EventPostType::get_date(); ?>
@@ -36,8 +33,6 @@ if ( have_posts() ) while ( have_posts() ) : the_post(); ?>
 					<div class="nav-previous"><?php EventPostType::previous_event_link( '%link', '<span class="meta-nav prev">' . _x( '&larr;', 'Previous event', 'event-post-type' ) . '</span> %title' ); ?></div>
 					<div class="nav-next"><?php EventPostType::next_event_link( '%link', '%title <span class="meta-nav next">' . _x( '&rarr;', 'Next event', 'event-post-type' ) . '</span>' ); ?></div>
 				</div><!-- #nav-below -->
-			</div>
-		</div>
 
 		<?php comments_template( '', true ); ?>
 
