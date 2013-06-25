@@ -17,6 +17,9 @@ if ($events->options['ept_archive_options']["archive_search"]) {
 if ($events->options['ept_archive_options']["archive_calendar"]) {
 	echo EventPostType::get_events_calendar();
 }
+if ($events->query_type == "search" && $events->query_meta["no_results"] > 0) {
+	printf('<p class="results_title">%s %s %s <strong>%s</strong></p>', __('Showing', 'event-post-type'), $events->query_meta["no_results"], __('results for your search', 'event-post-type'), $events->query_meta["query"]);
+}
 if (count($events->posts) || count($events->stickies)):
 	if (count($events->stickies)) :
 	    foreach ($events->stickies as $post):
@@ -34,7 +37,11 @@ if (count($events->posts) || count($events->stickies)):
 else : ?>
 
     <h2 class="center"><?php _e('Events', 'event-post-type'); ?></h2>
-    <p class="center"><?php _e('Sorry, but there are no events to show here.', 'event-post-type'); ?></p>
+    <?php if ($events->query_type == "search") { ?>
+	<p class="results_title"><?php _e('Sorry, nothing matched your search for', 'event-post-type'); ?> <strong><?php echo $events->query_meta["query"]; ?></strong></p>
+	<?php } else  { ?>
+    <p><?php _e('Sorry, but there are no events to show here.', 'event-post-type'); ?></p>
+    <?php } ?>
 
 <?php 
 endif; 

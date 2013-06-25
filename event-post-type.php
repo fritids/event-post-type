@@ -385,7 +385,7 @@ class EventPostType
 	public static function check_url($url = "")
 	{
 		$url = strtolower(trim(esc_url($url)));
-		if (!preg_match('!^https?://(.*)$', $url)) {
+		if (!preg_match('!^https?://(.*)$!', $url)) {
 			return false;
 		}
 		return true;
@@ -451,6 +451,8 @@ class EventPostType
 		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/(json|ical|rss|atom)/([0-9]{4})/([0-9]{2})/?$', 'index.php?post_type=event&event_feed=$matches[1]&event_year=$matches[2]&event_month=$matches[3]', 'top');
 		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['post_type_future_slug'] . '/?$', 'index.php?post_type=event&event_future=1&future_page=1', 'top');
 		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/' . $options['ept_plugin_options']['post_type_future_slug'] . '/([0-9]+)/?$', 'index.php?post_type=event&event_future=1&future_page=$matches[1]', 'top');
+		add_rewrite_rule('^' . $options['ept_plugin_options']['post_type_slug'] . '/search/?(.*)$', 'index.php?post_type=event&event_query=$matches[1]', 'top');
+		add_rewrite_tag('%event_query%', '(0|1)');
 		add_rewrite_tag('%event_future%', '(0|1)');
 		add_rewrite_tag('%future_page%', '[0-9]+');
 		add_rewrite_tag('%event_feed%', '(json|ical|rss|atom)');
@@ -1033,6 +1035,39 @@ class EventPostType
 			/* this type of query isn't paged, so we can bail here */
 			return $events;
 
+		} elseif (isset($wp_query->query_vars["event_query"])) {
+
+			/* event search */
+			$events->query_type = "search";
+
+			$query = self::get_query_term();
+			if (!empty($query)) {
+				$allEvents = self::get_events();
+				$query_terms = preg_split("/\s+/", strtolower($query));
+				foreach ($allEvents as $e) {
+					$match = false;
+					foreach ($query_terms as $qt) {
+						if ((strpos(strtolower($e->post_content), $qt) !== false) || strpos(strtolower($e->post_title), $qt) !== false) {
+							$match = true;
+						}
+					}
+					if ($match) {
+						$events->posts[] = $e;
+					}
+				}
+			}
+			/* if there is only one event for this query, redirect to the single event page */
+			if (count($events->posts) == 1) {
+				wp_redirect(self::get_url($events->posts[0]->ID));
+			}
+
+			$events->query_meta = array(
+				"no_results" => count($events->posts),
+				"query" => $query
+			);
+			usort($events->posts, array(__CLASS__, 'sort_events_by_start_date_desc'));
+			return $events;
+
 		} elseif (is_tax()) {
 
 			/* taxonomy based archives */
@@ -1099,7 +1134,7 @@ class EventPostType
 					/* find out how many past events were displayed on the front page */
 					$past_on_frontpage = ($events->options['ept_archive_options']['archive_frontpage_events'] + $sticky_on_frontpage) - count($events->current);
 				}
-				$start = ($events->options['ept_archive_options']['archive_perpage'] * (intVal($wp_query->query_vars["paged"]) - 2)) - $past_on_frontpage;
+				$start = ($events->options['ept_archive_options']['archive_perpage'] * (intVal($wp_query->query_vars["paged"]) - 2)) + $past_on_frontpage;
 				$events->posts = array_slice($events->past, $start, $events->options['ept_archive_options']["archive_perpage"]);
 			}
 
@@ -1219,6 +1254,22 @@ class EventPostType
 	}
 
 	/**
+	 * gets the query term for the events search
+	 */
+	public static function get_query_term()
+	{
+		global $wp_query;
+		$terms = "";
+		if (isset($_POST["eventsearch"])) {
+			/* search not using query term in URL */
+			$terms = trim($_POST["eventsearch"]);
+		} elseif (isset($wp_query->query_vars["event_query"]) && trim($wp_query->query_vars["event_query"]) != "") {
+			$terms = trim($wp_query->query_vars["event_query"]);
+		}
+		return $terms;
+	}
+
+	/**
 	 * returns links to different events pages
 	 * @param object events object
 	 * @return string HTML - links enclosed in <div> tags with classes "older-events"
@@ -1231,45 +1282,45 @@ class EventPostType
 			/* links between pages in future events */
 			if ($events->paging["newer"] !== false) {
 				/* events to display in the more distant future */
-				$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/%s">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["newer"], __('Future Events', 'event-post-type'));
+				$out .= sprintf('<div class="nav-previous"><a href="%s/%s/%s/%s">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["newer"], __('&larr; Future Events', 'event-post-type'));
 			}
 			if ($events->paging["older"] === false || $events->paging["older"] == 1) {
 				/* older events are on the main events archive page */
-				$out .= sprintf('<div class="older-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('Current Events', 'event-post-type'));
+				$out .= sprintf('<div class="nav-next"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('&larr; Current Events &rarr;', 'event-post-type'));
 			} else {
 				/* future events are being paged */
-				$out .= sprintf('<div class="older-events"><a href="%s/%s/%s/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["older"], __('Older Events', 'event-post-type'));
+				$out .= sprintf('<div class="nav-next"><a href="%s/%s/%s/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], $events->paging["older"], __('Older Events &rarr;', 'event-post-type'));
 			}
 		} else {
 			if ($events->paging["newer"] !== false) {
 				switch ($events->paging["newer"]) {
 					case 0:
 						/* link to future events page from main events archive */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], __('Future Events', 'event-post-type'));
+						$out .= sprintf('<div class="nav-previous"><a href="%s/%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->options['ept_plugin_options']['post_type_future_slug'], __('&larr; Future Events', 'event-post-type'));
 						break;
 					case 1:
 						/* link to main events archive from first page of past events */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('Current Events', 'event-post-type'));
+						$out .= sprintf('<div class="nav-previous"><a href="%s/%s/">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], __('&larr; Current Events', 'event-post-type'));
 						break;
 					default:
 						/* link to more recent past events */
-						$out .= sprintf('<div class="newer-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["newer"], __('More Recent Events', 'event-post-type'));
+						$out .= sprintf('<div class="nav-previous"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["newer"], __('&larr; More Recent Events', 'event-post-type'));
 						break;
 				}
 			}
 			if ($events->paging["older"] !== false) {
 				switch ($events->paging["older"]) {
 					case 1:
-						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('Current Events', 'event-post-type'));
+						$out .= sprintf('<div class="nav-previous"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('&larr; Current Events', 'event-post-type'));
 						break;
 					default:
-						$out .= sprintf('<div class="older-events"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('Older Events', 'event-post-type'));
+						$out .= sprintf('<div class="nav-next"><a href="%s/%s/page/%d">%s</a></div>', get_bloginfo("url"), $events->options['ept_plugin_options']['post_type_slug'], $events->paging["older"], __('Older Events &rarr;', 'event-post-type'));
 						break;
 				}
 			}
 		}
 		if ($out) {
-			$out = '<div class="events-navigation">' . $out . '</div>';
+			$out = '<div class="nav-below">' . $out . '</div>';
 		}
 		return $out;
 	}
@@ -1552,8 +1603,10 @@ class EventPostType
 			}
 
 		}
-		$out .= sprintf('<div class="event-search"><form action="" method="post"><input type="text" name="eventsearch" placeholder="%s" class="searchinput" /><input type="submit" value="go" class="searchsubmit" /></form></div>', __("Search events", "event-post-type"));
-		$out .= '<br style="clear:both" /></div>';
+		$query = self::get_query_term();
+		$out .= sprintf('<div class="event-search"><form action="%s/%s/search" method="post"><input type="text" name="eventsearch" placeholder="%s" class="searchinput" value="%s" /><input type="submit" value="Go" class="searchsubmit" /></form></div>', get_bloginfo('url'), $options['ept_plugin_options']["post_type_slug"], __("Search events", "event-post-type"), $query);
+		$out .= '<br style="clear:both" />';
+		$out .= '</div>';
 		if (has_filter('event-search-bar')) {
 			return apply_filters('event-search-bar', $out);
 		}
@@ -1846,6 +1899,17 @@ class EventPostType
 		if (has_filter("event-format")) {
 			return apply_filters("event-format", $evt, $opts, $options);
 		} else {
+			$excerpt_more = apply_filters('excerpt_more', ' ' . '[...]');
+			if (trim($evt->post_excerpt) != "") {
+				$excerpt = trim($evt->post_excerpt) . $excerpt_more;
+			} else {
+				$text = strip_shortcodes( $evt->post_content );
+				$text = apply_filters('the_content', $text);
+				$text = str_replace(']]>', ']]&gt;', $text);
+				$excerpt_length = apply_filters('excerpt_length', 55);
+				$excerpt_more = apply_filters('excerpt_more', ' ' . '[...]');
+				$excerpt = wp_trim_words( $text, $excerpt_length, $excerpt_more );
+			}
 			switch ($options['ept_archive_options']['archive_format']) {
 				case 'calendar':
 					return self::get_events_calendar($opts);
@@ -1855,7 +1919,7 @@ class EventPostType
 					break;
 				case 'title_excerpt':
 				case 'title_content':
-					$content = ($format == 'title_content')? apply_filters("the_content", $evt->post_content): apply_filters("the_excerpt", $evt->post_excerpt);
+					$content = ($format == 'title_content')? apply_filters("the_content", $evt->post_content): apply_filters("get_the_excerpt", $excerpt);
 					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $opts["events_title_tag"], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $opts["events_title_tag"], self::get_date($evt->ID, $opts), $content);
 					break;
 				case 'title_excerpt_thumbnail':
@@ -1877,7 +1941,7 @@ class EventPostType
 							$thumb = sprintf('<a href="%s" title="%s">%s</a>', self::get_url($evt->ID), esc_attr($evt->post_title), $thumbnail);
 						}
 					}
-					$content = ($options['ept_archive_options']['archive_format'] == 'title_content_thumbnail')? apply_filters("the_content", $evt->post_content): apply_filters("the_excerpt", $evt->post_excerpt);
+					$content = ($options['ept_archive_options']['archive_format'] == 'title_content_thumbnail')? apply_filters("the_content", $evt->post_content): $excerpt;
 					return sprintf('<div%s>%s<%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $thumb, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID, $options['ept_date_options']), $content);
 					break;
 			}
@@ -2374,7 +2438,45 @@ class EventPostType
 	public static function the_date()
 	{
 		global $post;
-		echo self::get_date($post->ID);
+		echo '<p class="date">' . self::get_date($post->ID) . '</p>';
+	}
+
+	/**
+	 * adds a list of categories/tags for an event
+	 */
+	public static function posted_in($args = array())
+	{
+        $post = get_post();
+        $defaults = array(
+        	"show" => "category,tag",
+        	"before" => '<p class="terms">',
+        	"after" => '</p>',
+        	"category_before" => __("Posted in", 'event-post-type'),
+        	"sep" => " ",
+        	"tag_before" => __("Tagged with", 'event-post-type')
+        );
+        $opts = wp_parse_args($args, $defaults);
+        $output = '';
+        $taxonomies = array_map("trim", array_map("strtolower", explode(',', $opts["show"]) ) );
+        foreach ( $taxonomies as $taxonomy ) {
+        	if ( !in_array($taxonomy, array("category", "tag"))) {
+        		continue;
+        	}
+			$terms = get_object_term_cache($post->ID, 'event_' . $taxonomy);
+			if ( false === $terms ) {
+				$terms = wp_get_object_terms($post->ID, 'event_' . $taxonomy);
+			}
+			$links = array();
+			foreach ( $terms as $term ) {
+				$links[] = "<a href='" . esc_attr( get_term_link($term) ) . "'>$term->name</a>";
+			}
+			if ( !empty($links) ) {
+				$output .= sprintf('%s: %s%s', $opts[$taxonomy . '_before'], implode(', ', $links), $opts["sep"]);
+			}
+		}
+		if (!empty($output)) {
+			echo $opts["before"] . $output . $opts["after"];
+		}
 	}
 
 	/**

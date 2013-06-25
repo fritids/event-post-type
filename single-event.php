@@ -17,7 +17,8 @@ if ( have_posts() ) while ( have_posts() ) : the_post(); ?>
 					<h2 class="entry-title"><?php the_title(); ?></h2>
 
 					<div class="entry-meta">
-						<?php EventPostType::get_date(); ?>
+						<?php EventPostType::the_date(); ?>
+						<?php EventPostType::posted_in(); ?>
 					</div><!-- .entry-meta -->
 
 					<div class="entry-content">
