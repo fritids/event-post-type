@@ -918,20 +918,28 @@ class EventPostType
 	{
 		global $post;
 		if (self::is_event()) {
-			$classes[] = 'event';
-			$eventmeta = self::get_event_meta($post->ID);
-			if ($eventmeta["event_start"] > time()) {
-				$classes[] = 'future-event';
-			} elseif ($eventmeta["event_end"] < time()) {
-				$classes[] = 'past-event';
-			} else {
-				$classes[] = 'current-event';
-			}
-			if ($eventmeta["event_is_sticky"]) {
-				$classes[] .= 'sticky-event';
-			}
+			$classes = array_unique(array_merge($classes, self::get_classes($post->ID)));
 		}
 		return $classes;
+	}
+
+	/**
+	 * returns classes based on a event date
+	 */
+	public static function get_classes($event_id)
+	{
+		$eventmeta = self::get_event_meta($event_id);
+		$classes = array("event");
+		if ($eventmeta["event_start"] > time()) {
+			$classes[] = 'future-event';
+		} elseif ($eventmeta["event_end"] < time()) {
+			$classes[] = 'past-event';
+		} else {
+			$classes[] = 'current-event';
+		}
+		if ($eventmeta["event_is_sticky"]) {
+			$classes[] .= 'sticky-event';
+		}
 	}
 
 	/**
@@ -1895,7 +1903,11 @@ class EventPostType
 				$options['ept_archive_options'][$default_key] = $opts[$opts_key];
 			}
 		}
-		$class = isset($opts["class"])? ' class="event ' . $opts["class"] . '"': ' class="event"';
+		$classes = self::get_classes($evt->ID);
+		if (isset($opts["class"])) {
+			$classes[] = $opts["class"];
+		}
+		$class = ' class="' . implode(" ", $classes);
 		if (has_filter("event-format")) {
 			return apply_filters("event-format", $evt, $opts, $options);
 		} else {
@@ -1915,12 +1927,12 @@ class EventPostType
 					return self::get_events_calendar($opts);
 					break;
 				case 'title':
-					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>', $class, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID, $options));
+					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>', $class, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID));
 					break;
 				case 'title_excerpt':
 				case 'title_content':
 					$content = ($format == 'title_content')? apply_filters("the_content", $evt->post_content): apply_filters("get_the_excerpt", $excerpt);
-					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $opts["events_title_tag"], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $opts["events_title_tag"], self::get_date($evt->ID, $opts), $content);
+					return sprintf('<div%s><%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $opts["events_title_tag"], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $opts["events_title_tag"], self::get_date($evt->ID), $content);
 					break;
 				case 'title_excerpt_thumbnail':
 				case 'title_content_thumbnail':
@@ -1942,7 +1954,7 @@ class EventPostType
 						}
 					}
 					$content = ($options['ept_archive_options']['archive_format'] == 'title_content_thumbnail')? apply_filters("the_content", $evt->post_content): $excerpt;
-					return sprintf('<div%s>%s<%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $thumb, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID, $options['ept_date_options']), $content);
+					return sprintf('<div%s>%s<%s><a href="%s" title="%s">%s</a></%s><p class="eventdate">%s</p>%s</div>', $class, $thumb, $options['ept_archive_options']['archive_title_tag'], self::get_url($evt->ID), esc_attr($evt->post_title), $evt->post_title, $options['ept_archive_options']['archive_title_tag'], self::get_date($evt->ID), $content);
 					break;
 			}
 		}
@@ -2365,7 +2377,7 @@ class EventPostType
 	 * get_date
 	 * returns a text representation of a date for an event
 	 */
-	public static function get_date($event_id = false, $display_options = array())
+	public static function get_date($event_id = false)
 	{
 		if ($event_id === false) {
 			global $post;
