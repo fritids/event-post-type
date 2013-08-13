@@ -940,6 +940,7 @@ class EventPostType
 		if ($eventmeta["event_is_sticky"]) {
 			$classes[] .= 'sticky-event';
 		}
+		return array_unique($classes);
 	}
 
 	/**
@@ -1907,7 +1908,7 @@ class EventPostType
 		if (isset($opts["class"])) {
 			$classes[] = $opts["class"];
 		}
-		$class = ' class="' . implode(" ", $classes);
+		$class = ' class="' . implode(" ", $classes) . '"';
 		if (has_filter("event-format")) {
 			return apply_filters("event-format", $evt, $opts, $options);
 		} else {
@@ -2030,34 +2031,38 @@ class EventPostType
 	{
 		printf('<h3>%s</h3>', __('Events Widget settings', 'event-post-type'));
 		$defaults = self::get_default_display_options();
+
 		/* event format presets */
-		$presets = self::get_events_format_presets();
+		/*$presets = self::get_events_format_presets();
 		$sel = (!isset($instance['events_preset']) || !in_array($instance['events_preset'], array_keys($presets)) || $instance['events_preset'] == "none")? ' selected="selected"': '';
 		printf('<p>%s <select name="%s" id="%s" class="events-preset-select"><option value="none"%s>%s</option>', __('Format:', 'event-post-type'), $widget->get_field_name('events_preset'), $widget->get_field_id('events_preset'), $sel, __('Select preset...', 'event-post-type'));
 		foreach ($presets as $key => $label) {
 			$sel = (isset($instance['events_preset']) && $instance['events_preset'] == $key)? ' selected="selected"': '';
 			printf('<option value="%s"%s>%s</option>', $key, $sel, $label);
 		}
-		print('</select></p>');
+		print('</select></p>');*/
+		
 		/* number of events to show */
-		$no = intval($instance['events_num']);
+		$no = isset($instance['events_num'])? intval($instance['events_num']): 0;
 		printf('<p class="input-events-num events-list"><label for="%s">%s</label><input type="text" id="%s" name="%s" value="%s" size="3" /></p>', $widget->get_field_id('events_num'), __('Number of events to display:', 'event-post-type'), $widget->get_field_id('events_num'), $widget->get_field_name('events_num'), $no);
 
 		/* format of event content */
 		if (!isset($instance['events_format'])) {
 			$instance['events_format'] = $defaults['events_format'];
 		}
-		printf('<div class="events-format events-list">$s</div>', self::get_format_select($widget->get_field_id('events_format'), $widget->get_field_name('events_format'), $instance['events_format'])); 
+		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_format'), __('Event format:', 'event-post-type'), self::get_format_select($widget->get_field_id('events_format'), $widget->get_field_name('events_format'), $instance['events_format'])); 
+		
 		/* thumnbnail size */
 		if (!isset($instance['events_thumbnail_size'])) {
 			$instance['events_thumbnail_size'] = $defaults['events_thumbnail_size'];
 		}
 		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_thumbnail_size'), __('Thumbnail size:', 'event-post-type'), self::get_image_sizes_select($widget->get_field_name('events_thumbnail_size'), $widget->get_field_id('events_thumbnail_size'), $instance['events_thumbnail_size']));
+		
 		/* tag to use for titles */
 		if (!isset($instance['events_title_tag'])) {
 			$instance['events_title_tag'] = $defaults['events_title_tag'];
 		}
-		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_title_tag'), __('Tag to use for titles:', 'event-post-type'), self::get_title_tags_select($widget->get_field_name('events_title_tag'), $widget->get_field_id('events_title_tag'), $instance['events_title_tag']));
+		printf('<p class="events-list"><label for="%s">%s</label>%s</p>', $widget->get_field_id('events_title_tag'), __('Tag to use for titles:', 'event-post-type'), self::get_title_tag_select($widget->get_field_name('events_title_tag'), $widget->get_field_id('events_title_tag'), $instance['events_title_tag']));
 
 
 		/* whether to prioritise sticky events */
@@ -2070,7 +2075,7 @@ class EventPostType
 		}
 		$category_filter = self::get_event_terms_select('event_category', $widget->get_field_id('events_category_filter'), $widget->get_field_name('events_category_filter'), $instance["events_category_filter"]);
 		if ($category_filter != '') {
-			printf('<h4>%s</h4>%s', __('Filter events by category', 'event-p[ost-type'), $category_filter);
+			printf('<h4>%s</h4>%s', __('Filter events by category', 'event-post-type'), $category_filter);
 		}
 
 		/* filter for events tags */
@@ -2083,7 +2088,7 @@ class EventPostType
 		}
 
 		/* filter by date */
-		$start_date = (isset($instance['events_start']) && $instance['events_start'] != '')? date("d/m/Y", $instance["events_start"]): '';
+		/*$start_date = (isset($instance['events_start']) && $instance['events_start'] != '')? date("d/m/Y", $instance["events_start"]): '';
 		$start_time = (isset($instance['events_start']) && $instance['events_start'] != '')? date("h:iA", $instance['events_start']): '';
 		$end_date = (isset($instance['events_end']) && $instance['events_end'] != '')? date("d/m/Y", $instance['events_end']): "";
 		$end_time = (isset($instance['events_end']) && $instance['events_end'] != '')? date("h:iA", $instance['events_end']): "";
@@ -2094,7 +2099,7 @@ class EventPostType
 		printf('<input type="text" id="%s" name="%s" value="%s" size="25" class="timepicker" /></p>', $widget->get_field_id('events_start_time'), $widget->get_field_name('events_start_time'), $start_time);
 		printf('<p class="event_datep"><label for="%s">%s</label><br />', $widget->get_field_id('events_end_date'), __( 'Event end', 'event-post-type' ));
 		printf('<input type="text" id="" name="" value="%s" size="25" class="datepicker" />', $widget->get_field_id('events_end_date'), $widget->get_field_name('events_end_date'), $end_date);
-		printf('<input type="text" id="%s" name="%s" value="%s" size="25" class="timepicker" /></p>', $widget->get_field_id('events_end_time'), $widget->get_field_name('events_end_time'), $end_time);
+		printf('<input type="text" id="%s" name="%s" value="%s" size="25" class="timepicker" /></p>', $widget->get_field_id('events_end_time'), $widget->get_field_name('events_end_time'), $end_time);*/
 
 	}
 
@@ -2111,24 +2116,24 @@ class EventPostType
 	 */
 	private static function validate_display_options($new_values, $old_values = false)
 	{
-		$defaults = self::get_default_display_options();
 		if (!$old_values) {
-			$values = $defaults;
-		} else {
-			$values = wp_parse_args($old_values, $defaults);
+			$old_values = self::get_default_display_options();
 		}
+		$values = wp_parse_args($new_values, $old_values);
 
 		/* validate format preset */
-		$presets = self::get_events_format_presets();
+		/*$presets = self::get_events_format_presets();
 		if (in_array($new_values['events_preset'], array_keys($presets))) {
 			$values['events_preset'] = $new_values['events_preset'];
-		}
+		}*/
 
 		/* validate content format */
 		$content_formats = self::get_formats();
 		if (!has_filter("event-format")) {
 			if (in_array($new_values['events_format'], array_keys($content_formats))) {
 				$values['events_format'] = $new_values['events_format'];
+			} else {
+				$values['events_format'] = $old_values['events_format'];
 			}
 		} else {
 			$values['events_format'] = 'user';
@@ -2139,6 +2144,8 @@ class EventPostType
 		if (!has_filter("event-format")) {
 			if (in_array($new_values['events_title_tag'], $title_tags)) {
 				$values['events_title_tag'] = $new_values['events_title_tag'];
+			} else {
+				$values['events_title_tag'] = $old_values['events_title_tag'];
 			}
 		} else {
 			$values['events_format'] = 'user';
@@ -2147,18 +2154,22 @@ class EventPostType
 		/* validate category and tag filters */
 		if (isset($new_values["events_category_filter"]) && is_array($new_values["events_category_filter"])) {
 			$values["events_category_filter"] = $new_values["events_category_filter"];
+		} else {
+			$values["events_category_filter"] = array();
 		}
 		if (isset($new_values["events_tag_filter"]) && is_array($new_values["events_tag_filter"])) {
 			$values["events_tag_filter"] = $new_values["events_tag_filter"];
+		} else {
+			$values["events_tag_filter"] = array();
 		}
 
 		/* validate start and end time filters */
-		$start_date = isset($new_values['events_start_date'])? $new_values['events_start_date']: "";
+		/*$start_date = isset($new_values['events_start_date'])? $new_values['events_start_date']: "";
 		$start_time = isset($new_values['events_start_time'])? $new_values['events_start_time']: "";
 		$end_date = isset($new_values['events_end_date'])? $new_values['events_end_date']: "";
 		$end_time = isset($new_values['events_end_time'])? $new_values['events_end_time']: "";
 		$values['events_start'] = self::parse_date($start_date, $start_time);
-		$values['events_end'] = self::parse_date($end_date, $end_time);
+		$values['events_end'] = self::parse_date($end_date, $end_time);*/
 
 		/* copy remaining values */
 		$values['events_thumbnail_size'] = $new_values['events_thumbnail_size'];
@@ -2194,7 +2205,6 @@ class EventPostType
 	private static function get_formats()
 	{
 		return array(
-			'calendar' => __('Calendar', 'event-post-type'),
 			'title' => __('Title & date', 'event-post-type'),
 			'title_excerpt' => __('Title, date & excerpt', 'event-post-type'),
 			'title_excerpt_thumbnail' => __('Title, date, excerpt & thumbnail', 'event-post-type'),
@@ -2210,6 +2220,8 @@ class EventPostType
 	{
 		return array(
 			'span',
+			'strong',
+			'em',
 			'h1',
 			'h2',
 			'h3',
@@ -2224,10 +2236,10 @@ class EventPostType
 	 */
 	private static function get_default_display_options()
 	{
-		$content_formats = self::get_formats();
+		$formats = self::get_formats();
 		return array(
 			'events_preset' => 'none',
-			'events_format' => array_pop(array_keys($content_formats)),
+			'events_format' => 'title_excerpt_thumbnail',
 			'events_category_filter' => array(),
 			'events_tag_filter' => array(),
 			'events_start' => '',
@@ -2249,19 +2261,17 @@ class EventPostType
 	{
 		$out = "";
 		if (!has_filter("event-format")) {
-			$out .= '<ul>';
-			$suffix = 1;
+			$out .= sprintf('<select id="%s" name="%s">', $id, $name);
 			$formats = self::get_formats();
 			if (!$selected || !in_array($selected, array_keys($formats))) {
-				$selected = array_shift(array_keys($formats));
+				$defaults = self::get_default_display_options();
+				$selected = $defaults["events_format"];
 			}
 			foreach ($formats as $fmt => $desc) {
-				$id .= "_" . $suffix;
-				$chckd = ($fmt === $selected)? ' checked="checked"': '';
-				$out .= sprintf('<li><input type="radio" name="%s" id="%s" value="%s"%s /> %s</li>', $name, $id, $fmt, $chckd, $desc);
-				$suffix++;
+				$chckd = ($fmt === $selected)? ' selected="selected"': '';
+				$out .= sprintf('<option value="%s"%s>%s</option>', $fmt, $chckd, $desc);
 			}
-			$out .= '</ul>';
+			$out .= '</select>';
 			return $out;
 		} else {
 			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $name, $id);
@@ -2325,17 +2335,20 @@ class EventPostType
 				}
 			}
 			if (count($sizes)) {
-				$out .= sprintf('<select id="%s" name="%s">', $select_id, $select_name);
+				$out .= sprintf('<select id="%s" name="%s" class="thumbnail_size_select">', $select_id, $select_name);
+				$sizes_keys = array_keys($sizes);
+				$default = array_shift($sizes_keys);
+				$selected = (!in_array($selected, array_keys($sizes)))? $default: $selected;
 				foreach ($sizes as $s ) {
 					$cropped = $s['crop']? " - cropped": "";
 					$sel = ($s['name'] == $selected)? ' selected="selected"': '';
 					$out .= sprintf('<option value="%s"%s>%s (%s x %s%s)</option>', $s['name'], $sel, $s['name'], $s['width'], $s['height'], $cropped);
 				}
-				$sel = (!in_array($selected, array_keys($sizes)))? ' selected="selected"': '';
-				$custom_value = (!in_array($selected, array_keys($sizes)))? $selected: '';
-				printf('<option value="custom"%s>%s</option></select><br /><input type="text" name="thumbnail_size_input" id="thumbnail_size_input" size="7" value="%s" />', __('Custom size', 'event-post-type'), $sel, $custom_value);
-				printf('<p id="custom_thumbnail_desc"><em>%s</em></p>', __('Custom settings consist of two numbers separated by a comma. These represent the width and height of the cropped image.', 'event-post-type'));
+				$out .= '</select>';
+				/* $custom_value = ($selected == "custom")? $selected: '';
+				$out .= sprintf('<option value="custom"%s>%s</option></select><br /><input type="text" name="thumbnail_size_input" id="thumbnail_size_input" size="7" value="%s" />', $sel, __('Custom size', 'event-post-type'), $custom_value);*/
 			}
+			/*$out .= sprintf('<p id="custom_thumbnail_desc"><em>%s</em></p>', __('Custom settings consist of two numbers separated by a comma. These represent the width and height of the cropped image.', 'event-post-type'));*/
 		} else {
 			$out .= sprintf('(%s) <input type="hidden" name="%s" id="%s" value="user" />', __('User defined', 'event-post-type'), $select_name, $select_id);
 		}
@@ -2365,7 +2378,7 @@ class EventPostType
 			foreach ($terms as $term) {
 				$sel = in_array($term->slug, $selected)? ' checked="checked"': '';
 				$fid = $field_id . '-' . $count;
-				$inputs[] = sprintf('<label for="%s"><input type="checkbox" id="%s" name="%s"%s />%s</label>', $fid, $fid, $fname, $sel, $term->name);
+				$inputs[] = sprintf('<label for="%s"><input type="checkbox" id="%s" name="%s"%s /> %s</label>', $fid, $fid, $fname, $sel, $term->name);
 				$count++;
 			}
 			$out .= implode('<br />', $inputs) . '</p>';
@@ -2542,7 +2555,7 @@ class EventPostType
 EventPostType::register();
 }
 
-if (0 && !class_exists('Widget_EventsPostType') ) :
+if (!class_exists('Widget_EventsPostTypeList') ) :
 /**
  * widget for events
  * @author Peter Edwards <bjorsq@gmail.com>
@@ -2550,10 +2563,10 @@ if (0 && !class_exists('Widget_EventsPostType') ) :
  * @package WordPress
  * @subpackage EventPostType_Plugin
  */
-class Widget_EventsPostType extends WP_Widget {
+class Widget_EventsPostTypeList extends WP_Widget {
 
-	function Widget_EventsPostType() {
-		$widget_ops = array('classname' => 'widget_ept_list', 'description' => 'Widget to display events as a list, calendar or a combination of the two' );
+	function Widget_EventsPostTypeList() {
+		$widget_ops = array('classname' => 'widget_ept_list', 'description' => 'Widget to display events as a list' );
 		$this->WP_Widget('ept_widget', 'Events Widget', $widget_ops);
 	}
 
@@ -2562,7 +2575,7 @@ class Widget_EventsPostType extends WP_Widget {
 		global $post;
 		extract($args);
 		echo $before_widget;
-		echo '<div id="events_widget_wrap">';
+		echo '<div class="events_widget_wrap">';
 		echo EventPostType::widget_output($instance, $post);
 		echo '</div>';
 		echo $after_widget;
@@ -2605,14 +2618,14 @@ class Widget_EventsPostTypeCalendar extends WP_Widget {
 		global $post;
 		extract($args);
 		echo $before_widget;
-		echo '<div id="events_widget_wrap">';
+		echo '<div class="events_widget_wrap">';
 		echo EventPostType::get_events_calendar($instance);
 		echo '</div>';
 		echo $after_widget;
 	}
 
 	function update( $new_instance, $old_instance ) {
-		$instance = $old_instance;
+		$instance = $new_instance;
 		return $instance;
 	}
 
